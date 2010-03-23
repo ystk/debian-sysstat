@@ -1,0 +1,133 @@
+#!/usr/bin/make -f
+# $Id: rules 1476 2010-01-02 10:33:42Z robert $
+# Sample debian/rules that uses debhelper.
+# This file is public domain software, originally written by Joey Hess.
+#
+# This version is for a multibinary package. It also allows you to build any
+# of the binary packages independantly, via binary-<package> targets.
+
+# Uncomment this to turn on verbose mode. 
+#export DH_VERBOSE=1
+
+# This has to be exported to make some magic below work.
+export DH_OPTIONS
+
+export DH_ALWAYS_EXCLUDE=CVS:.svn
+
+
+DESTDIR=$(CURDIR)/debian/tmp
+
+ifeq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+	CFLAGS 		:= -g -O2
+else
+	CFLAGS 		:= -g -O0
+endif
+
+
+build: build-stamp
+build-stamp:
+	dh_testdir
+
+
+	./configure --prefix=/usr 			\
+		    --mandir=/usr/share/man		\
+		    --enable-smp-race			\
+		    --enable-yesterday			\
+		    --disable-man-group			\
+		    --disable-compress-manpg		\
+		    sa_lib_dir=/usr/lib/sysstat		\
+		    sa_dir=/var/log/sysstat		\
+		    conf_dir=/etc/sysstat		\
+		    CFLAGS="$(CFLAGS)"			\
+		    LDFLAGS="$(LDFLAGS)"		
+
+	# Add here commands to compile the package.
+	$(MAKE)
+
+	chmod a+x debian/debian-sa1
+
+	touch build-stamp
+
+clean:
+	dh_testdir
+	dh_testroot
+	rm -f build-stamp
+
+	# Add here commands to clean up after the build process.
+	[ ! -f Makefile ] || $(MAKE) clean
+	[ ! -f Makefile ] || $(MAKE) distclean
+
+	dh_clean
+
+install: DH_OPTIONS=
+install: build
+	dh_testdir
+	dh_testroot
+	dh_prep
+	dh_installdirs
+
+	# Add here commands to install the package into debian/tmp.
+	$(MAKE) install_base DESTDIR="$(DESTDIR)"
+
+	mkdir -p -m 755 $(DESTDIR)/usr/lib/sysstat
+	mv $(DESTDIR)/usr/bin/sar $(DESTDIR)/usr/bin/sar.sysstat
+	mv $(DESTDIR)/usr/share/man/man1/sar.1 $(DESTDIR)/usr/share/man/man1/sar.sysstat.1
+	rm -rf $(DESTDIR)/usr/doc
+
+	dh_install
+
+# This single target is used to build all the packages, all at once, or
+# one at a time. So keep in mind: any options passed to commands here will
+# affect _all_ packages. Anything you want to only affect one package
+# should be put in another target, such as the install target.
+binary-common:
+	dh_testdir
+	dh_testroot
+#	dh_installchangelogs 
+	dh_installdocs
+	dh_installexamples
+	dh_installmenu
+	dh_installdebconf
+#	dh_installlogrotate
+#	dh_installemacsen
+#	dh_installcatalogs
+#	dh_installpam
+#	dh_installmime
+	dh_installinit --no-start -- start 20 2 3 4 5 . 
+#	dh_installman
+	dh_installcron
+#	dh_installinfo
+#	dh_undocumented
+
+	sh debian/fix.sh $(PACKAGE)
+
+	dh_lintian
+	dh_strip
+	dh_link
+	dh_compress
+	dh_fixperms
+#	dh_perl
+#	dh_python
+#	dh_makeshlibs
+	dh_installdeb
+	dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+# Build architecture independant packages using the common target.
+binary-indep: build install
+	dh_installchangelogs -i
+	 $(MAKE) -f debian/rules DH_OPTIONS=-i PACKAGE=isag binary-common
+
+# Build architecture dependant packages using the common target.
+binary-arch: build install
+	dh_installchangelogs -a CHANGES
+	$(MAKE) -f debian/rules DH_OPTIONS=-a PACKAGE=sysstat binary-common
+
+# Any other binary targets build just one binary package at a time.
+binary-%: build install
+	make -f debian/rules binary-common DH_OPTIONS=-p$*
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary-common binary install
