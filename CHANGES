@@ -1,11 +1,245 @@
 Changes:
 
-2010/02/28: Version 9.0.6.1 - Sebastien Godard (sysstat <at> orange.fr)
+2012/05/16: Version 10.0.5 - Sebastien Godard (sysstat <at> orange.fr)
+	* [Alain Chereau]: Options -g and -T added to iostat. These
+	  options enable the user to display statistics for groups of
+	  devices.
+	* [Vitezslav Cizek]: sadc now overwrites its standard daily
+	  data file when this file is from a past month.
+	* sadf: Change time format from HH-MM-SS to HH:MM:SS in the
+	  various reports displayed by sadf.
+	* XSD document updated: Added a maxOccurs indicator for the
+	  timestamp element.
+	* Added option --enable-collect-all to configure script.
+	  This option tells sadc to collect all possible activities,
+	  including optional ones.
+	* [Peter Schiffer]: Set exit code to 0 for sa2 shell script.
+	* NLS updated. Croatian translation added.
+	* iostat and sadc manual pages updated.
+	* FAQ updated.
+	* CREDITS file updated.
+
+2012/03/07: Version 10.0.4 - Sebastien Godard (sysstat <at> orange.fr)
+	* [Andrey Borzenkov]: Don't take virtual devices into account in
+	  sar -b results.
+	* [Peter Schiffer]: iostat didn't display target device
+	  information when a symbolic link was specified as a parameter.
+	  This is now fixed.
+	* The number of jiffies spent by a CPU in guest mode given by the
+	  corresponding counter in /proc/stat may be slightly different
+	  from that included in the user counter. Take this into account
+	  when calculating current time interval value.
+	* configure script updated: Added --disable-stripping option.
+	  Using this option tells configure to NOT strip object files.
+	* FAQ updated.	
+	* sa1 manual page updated.
+	* NLS updated. Serbian translation added.
+
+2011/11/27: Version 10.0.3 - Sebastien Godard (sysstat <at> orange.fr)
+	* sadf: New output format added: JSON (JavaScript Object
+	  Notation). This format can be displayed with sadf's option -j.
+	* [Jürgen Heinemann]: Fixed a bug in sadf XML output.
+	* [Jürgen Heinemann]: Fixed several bugs in DTD and XSD
+	  documents.
+	* [Petr Uzel]: Fixed random crash with iostat when called with
+	  option -N [NOVELL Bug#729130].
+	* sadf manual page updated.
+	* NLS updated.
+	* CREDITS file updated.
+
+2011/08/28: Version 10.0.2 - Sebastien Godard (sysstat <at> orange.fr)
+	* sadf modified to make it easier to add new output formats.
+	  Its design is still not generic anyway.
+	* Option -T added to sadf: This option tells sadf to display
+	  timestamps in seconds since the epoch (when applicable).
+	* Option "-P ON" added to mpstat. This option tells mpstat
+	  to display stats only for online CPU.
+	* [Kei Ishida]: pidstat displayed stats for processes that
+	  had terminated while pidstat was running. This is now fixed.
+	* [Jeroen Roovers]: Automate translation files handling in
+	  Makefile.in.
+	* DTD and XSD documents updated.
+	* sadf and mpstat manual pages updated.
+	* pidstat manual page updated: Added description of field %MEM
+	  displayed by pidstat -r.
+	* Various cosmetic changes (sar.c, sadf.c).
+	* NLS updated.
+	* CREDITS file updated.
+
+2011/06/03: Version 10.0.1 - Sebastien Godard (sysstat <at> orange.fr)
+	* Added USB devices statistics to sar and sadc. The option
+	  "-m USB" can now be used with sar to take a snapshot of all
+	  the USB devices currently plugged into the system.
+	* sadf -p now displays the sensor device name for temperature,
+	  voltage inputs and fans statistics.
+	* sar and pidstat: Check that _("Average") string doesn't exceed
+	  the size of the timestamp buffer.
+	* [Ivana Varekova]: Added option -h to iostat. This option makes
+	  the device utilization report easier to read with long device
+	  names.
+	* [Ivana Varekova]: cifsiostat didn't count open files from the
+	  "Posix Open" column in /proc/fs/cifs/Stats file. This is now
+	  fixed.
+	* [Ivana Varekova]: Close file descriptor in read_uptime()
+	  function (rd_stats.c file).
+	* Fixed XML output displayed by sadf (hugepages statistics were
+	  included in <power-management> section).
+	* sar: Decrease column width for sensor device name (temperature,
+	  voltage inputs and fans statistics).
+	* Remove unnecessary arguments from functions in pr_stats.c.
+	* sar manual page updated.
+	* DTD and XSD documents updated and cleaned.
+	* NLS updated. Esperanto translation added.
+	* CREDITS file updated.
+
+2011/03/15: Version 10.0.0 - Sebastien Godard (sysstat <at> orange.fr)
+	* [Ivana Varekova]: Fixed a problem with long NFS and CIFS share
+	  names in cifsiostat and nfsiostat.
+	* [Ivana Varekova]: Added the possibility to extend the number
+	  of slots for NFS and CIFS mount points on the fly.
+	* [Ivana Varekova]: Check calloc() return value in cifsiostat
+	  and nfsiostat.
+	* [Jan Kaluza]: Added --debuginfo option to cifsiostat and
+	  nfsiostat.
+	* cifsiostat and nfsiostat manual pages updated.
+	* Don't link sysstat's commands with sensors library if not
+	  needed [DEBIAN Bug#612571].
+	* [Adam Heath]: iostat incorrectly mapped device-mapper IDs
+	  greater than 256. This is now fixed [DEBIAN Bug#614397].
+	* Sysstat's commands option -V now displays the version number
+	  on stdout and returns 0 for the exit code.
+	* sysstat_panic function is now defined only in DEBUG mode.
+	* NLS updated. Ukrainian translation added.
+	* CREDITS file updated.
+
+2010/12/26: Version 9.1.7 - Sebastien Godard (sysstat <at> orange.fr)
+	  INFO: stats_queue structure format has changed and is *not*
+	  compatible with the previous one [+1]
+	* sar now tells sadc to read only the necessary groups of
+	  activities.
+	* Added a new metric (number of tasks waiting for I/O) to
+	  sar -q.
+	* Added two new metrics (amount of active and inactive
+	  memory) to sar -r.
+	* [Ivana Varekova]: Fix segfaults on bogus localtime input.
+	* Fixed bogus CPU statistics output, which happened when
+	  CPU user value from /proc/stat wasn't incremented whereas
+	  CPU guest value was.
+	* nfsiostat now takes into account POSIXLY_CORRECT environment
+	  variable. nfsiostat default output is expressed in kB/s,
+	  unless this variable is set (in which case the output is
+	  expressed in blocks/s).
+	* No longer assume that device-mapper major number is 253.
+	  Get the real number from /proc/devices file.
+	* DTD and XSD documents updated.
+	* [Kenichi Okuyama]: Small change to sar manual page.
+	* sar manual page updated.
+	* NLS updated.
+	* Code cleaned.
+
+2010/11/10: Version 9.1.6 - Sebastien Godard (sysstat <at> orange.fr)
+	  WARNING: Daily data files format has changed, and is *not*
+	  compatible with the previous one! [0x2171]
+	* Added a new magical value for each activity in file.
+	  A format change can now hit only one activity instead of
+	  the whole file.
+	* Added CPU average clock frequency statistics to sar and sadc.
+	* Added hugepages utilization statistics to sar and sadc.
+	* Fixed some differences between XML output (as displayed by
+	  sadf -x) and DTD document.
+	* sadc -S POWER didn't include voltage inputs statistics.
+	  This is now fixed.
+	* Define groups of activities: Each activity has now a new
+	  attribute specifying the group it belongs to (POWER, IPV6, etc.)
+	* [Ivana Varekova]: Moved manual pages to $prefix/share/man
+	  instead of $prefix/man.
+	* [Ivana Varekova]: Fixed configure's --disable-man-group option.
+	* [Ivana Varekova]: Added SADC_OPTIONS to sysstat configuration file.
+	* [Ivana Varekova]: Added sysstat(5) manual page.
+	* sar manual page updated.
+	* DTD and XSD documents updated.
+	* NLS updated.
+	* Split up prf_stats.c file into rndr_stats.c and xml_stats.c
+	* Moved cron files in a separate cron subdirectory.
+	* Made sysstat git aware.
+	* CREDITS file updated.
+
+2010/09/12: Version 9.1.5 - Sebastien Godard (sysstat <at> orange.fr)
+	* Added voltage inputs statistics to sar and sadc.
+	* Added %temp field to device temperature statistics (sar -m TEMP).
+	* Added drpm field to fan speed statistics (sar -m FAN).
+	* XSD and DTD documents updated.
+	* sar manual page updated. Indicate that svctm field should
+	  no longer be trusted.
+	* Removed link to isag(1) from man pages.
+	* NLS updated. Czech translation added.
+	* Sample crontabs and sysstat init script: Don't collect disk
+	  data by default.
+	* Code cleaned.
+
+2010/07/29: Version 9.1.4 - Sebastien Godard (sysstat <at> orange.fr)
+	* [Jan Kaluza]: Added fan speed and device temperature
+	  statistics to sar and sadc.
+	* [Jan Kaluza]: Configure script updated. Now check for
+	  lm_sensors library.
+	* Configure script updated: Added --disable-sensors option.
+	* Configure script updated: Removed --enable-smp-race option.
+	* iconfig script updated.
+	* sar manual page updated.
+	* XSD and DTD documents updated.
+	* [Ivana Varekova]: sysstat init script updated.
+	* Default owner for sadc/sar crontab is now root.
+	* Various fixes in cifsiostat and nfsiostat manual pages.
+	* NLS updated.
+
+2010/06/27: Version 9.1.3 - Sebastien Godard (sysstat <at> orange.fr)
+	* [Ivana Varekova]: Move NFS code out from iostat and create
+	  the new nfsiostat command.
+	* [Ivana Varekova]: Added cifsiostat command. This command
+	  displays CIFS statistics.
+	* [Mario Konrad]: Added regular expressions support to pidstat's
+	  option -C.
+	* [Mario Konrad]: Added option -s to pidstat to display stack
+	  statistics.
+	* [Ivana Varekova]: Fixed condition used by sar to distinguish
+	  betwwen a counter reset by a newly registered device and a
+	  counter overflow.
+	* [Jan Kaluza]: Added --debuginfo option to iostat.
+	* [Jan Kaluza]: Added --enable-debuginfo option to configure script.
+	* iconfig configuration script updated.
+	* iostat manual page updated. Indicate that svctm field should
+	  no longer be trusted.
+	* pidstat manual page updated.
+	* autoconf script updated.
+	* NLS updated.
+	* README and CREDITS files updated.
+
+2010/05/23: Version 9.1.2 - Sebastien Godard (sysstat <at> orange.fr)
+	* Added r_await and w_await fields to iostat's extended statistics.
+	* Added support for tickless CPUs in sar and mpstat.
+	* NLS was not taken into account when mpstat or sar were displaying
+	  some null statistics. This is now fixed.
+	* sadc no longer syncs data with its output file contents. It
+	  put a pain on flash devices as it undermined any tuning of
+	  the vm's write behavior [DEBIAN Bug#559686].
+	* NLS updated. Basque translation added.
+	* iostat, sar and sa1 manual pages updated.
+	* CREDITS file updated.
+
+2010/02/28: Version 9.1.1 - Sebastien Godard (sysstat <at> orange.fr)
+	* Remove support for kernels older than 2.6.x.
+	* iostat now takes into account POSIXLY_CORRECT environment
+	  variable. iostat default output for disk utilization is
+	  expressed in kB/s, unless this variable is set (in which case
+	  the output is expressed in blocks/s).
+	* mpstat can now display per processor software interrupts
+	  statistics. This requires Linux kernel 2.6.31 or later.
 	* Because of a change in /proc/interrupts file format, mpstat
 	  was no longer counting the proper number of interrupts. This
 	  is now fixed.
-	* iostat manual page updated.
+	* Manual pages updated.
 	* NLS updated.
+	* Code cleaned.
 
 2009/11/11: Version 9.0.6 - Sebastien Godard (sysstat <at> orange.fr)
 	* "sadf -x" now takes into account options -s and -e (which
@@ -18,9 +252,10 @@ Changes:
 	* XML output (displayed by sadf -x) modified for kernel tables
 	  statistics.
 	* XSD and DTD documents updated.
-	* [Yibin Shen]: HZ variable was not explicitly set in sadc.c. This is now fixed.
-	* [Lans Carstensen]: sargraph added (sargraph is a shell script used to make graphs
-	  based on sadf XML output).
+	* [Yibin Shen]: HZ variable was not explicitly set in sadc.c. This
+	  is now fixed.
+	* [Lans Carstensen]: sargraph added (sargraph is a shell script
+	  used to make graphs based on sadf XML output).
 	* sadf manual page updated.
 	* FAQ updated.
 	* NLS updated.
@@ -233,7 +468,7 @@ Changes:
 	  done in one place (common function used by iostat, sar, sadf).
 	* All sysstat commands are made consistent with how parameters
 	  are interpreted: "COMMAND <interval>" now generates a report
-	  continusouly, "COMMAND <interval> 0" causes an error,
+	  continuously, "COMMAND <interval> 0" causes an error,
 	  "COMMAND 0" displays a report since system startup
 	  [DEBIAN bug#475707].
 	* Changed XML output for processes and context switches displayed

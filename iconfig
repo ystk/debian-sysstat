@@ -1,6 +1,6 @@
 #!/bin/sh
 #@(#) Configuration script for sysstat
-# (C) 2000-2009 Sebastien GODARD (sysstat <at> orange.fr)
+# (C) 2000-2012 Sebastien GODARD (sysstat <at> orange.fr)
 
 ASK="sh build/Ask.sh"
 
@@ -58,15 +58,14 @@ else
 	echo "Parameter --disable-nls is NOT set"
 fi
 
-# Linux SMP race workaround
-SMPRACE=`${ASK} 'Linux SMP race in serial driver workaround? (y/n)' "--enable-smp-race" "smp-race"`
-if [ "${SMPRACE}" = "y" ]; then
-	SMPRACE="--enable-smp-race "
+# Sensors support
+SENSORS=`${ASK} 'Disable sensors support? (y/n)' "--disable-sensors" "sensors"`
+if [ "${SENSORS}" = "y" ]; then
+	SENSORS="--disable-sensors "
 else
-	SMPRACE=""
-	echo "Parameter --enable-smp-race is NOT set"
+	SENSORS=""
+	echo "Parameter --disable-sensors is NOT set"
 fi
-
 
 # sa2 processes data file of the day before
 YESTERDAY=`${ASK} 'sa2 uses daily data file of the day before? (y/n)' "--enable-yesterday" "yesterday"`
@@ -131,6 +130,16 @@ fi
 
 if [ "${CRON}" != "" ];
 then
+	COLL_ALL=`${ASK} 'Should sadc collect optional activities? (y/n)' "--enable-collect-all" "collect-all"`
+	if [ "${COLL_ALL}" = "y" ]; then
+		CRON="${CRON}--enable-collect-all "
+	else
+		echo "Parameter --enable-collect-all is NOT set"
+	fi
+fi
+
+if [ "${CRON}" != "" ];
+then
 	# rc directory
 	RCDIR=`${ASK} 'rc directory:' "rcdir" "rcdir"`
 	if [ "${RCDIR}" != "" ]; then
@@ -156,6 +165,15 @@ else
 	echo "Parameter --disable-documentation is NOT set"
 fi
 
+# Debug mode
+DEBUGINFO=`${ASK} 'Debug mode support? (y/n)' "--enable-debuginfo" "debuginfo"`
+if [ "${DEBUGINFO}" = "y" ]; then
+	DEBUGINFO="--enable-debuginfo "
+else
+	DEBUGINFO=""
+	echo "Parameter --enable-debuginfo is NOT set"
+fi
+
 # Install isag script
 INSTALL_ISAG=`${ASK} 'Install isag script? (y/n)' "--enable-install-isag" "install-isag"`
 if [ "${INSTALL_ISAG}" = "y" ]; then
@@ -165,13 +183,22 @@ else
 	echo "Parameter --enable-install-isag is NOT set"
 fi
 
+# Strip object files
+STRIP=`${ASK} 'Do not strip object files? (y/n)' "--disable-stripping" "stripping"`
+if [ "${STRIP}" = "y" ]; then
+	STRIP="--disable-stripping "
+else
+	STRIP=""
+	echo "Parameter --disable-stripping is NOT set"
+fi
+
 echo
 echo "./configure ${PREFIX}${SA_LIB_DIR}${SA_DIR}${SYSCONFIG_DIR}${CLEAN_SA_DIR}${NLS} \
-${SMPRACE}${YESTERDAY}${HISTORY}${COMPRESSAFTER}${MAN}${IGNORE_MAN}${CRON}${RCDIR} \
-${COMPRESSMANPG}${INSTALL_DOC}${INSTALL_ISAG}"
+${YESTERDAY}${HISTORY}${COMPRESSAFTER}${MAN}${IGNORE_MAN}${CRON}${RCDIR} \
+${COMPRESSMANPG}${INSTALL_DOC}${DEBUGINFO}${INSTALL_ISAG}${SENSORS}${STRIP}"
 echo
 
 ./configure ${PREFIX}${SA_LIB_DIR}${SA_DIR}${SYSCONFIG_DIR}${CLEAN_SA_DIR}${NLS} \
-${SMPRACE}${YESTERDAY}${HISTORY}${COMPRESSAFTER}${MAN}${IGNORE_MAN}${CRON}${RCDIR} \
-${COMPRESSMANPG}${INSTALL_DOC}${INSTALL_ISAG}
+${YESTERDAY}${HISTORY}${COMPRESSAFTER}${MAN}${IGNORE_MAN}${CRON}${RCDIR} \
+${COMPRESSMANPG}${INSTALL_DOC}${DEBUGINFO}${INSTALL_ISAG}${SENSORS}${STRIP}
 

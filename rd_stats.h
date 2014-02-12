@@ -1,6 +1,6 @@
 /*
  * rd_stats.h: Include file used to read system statistics
- * (C) 1999-2009 by Sebastien Godard (sysstat <at> orange.fr)
+ * (C) 1999-2011 by Sebastien Godard (sysstat <at> orange.fr)
  */
 
 #ifndef _RD_STATS_H
@@ -23,6 +23,10 @@
 
 /* Maximum length of network interface name */
 #define MAX_IFACE_LEN	IFNAMSIZ
+/* Maximum length of USB manufacturer string */
+#define MAX_MANUF_LEN	24
+/* Maximum length of USB product string */
+#define MAX_PROD_LEN	48
 
 #define CNT_DEV		0
 #define CNT_PART	1
@@ -152,6 +156,8 @@ struct stats_memory {
 	unsigned long tlskb	__attribute__ ((aligned (8)));
 	unsigned long caskb	__attribute__ ((aligned (8)));
 	unsigned long comkb	__attribute__ ((aligned (8)));
+	unsigned long activekb	__attribute__ ((aligned (8)));
+	unsigned long inactkb	__attribute__ ((aligned (8)));
 };
 
 #define STATS_MEMORY_SIZE	(sizeof(struct stats_memory))
@@ -169,6 +175,7 @@ struct stats_ktables {
 /* Structure for queue and load statistics */
 struct stats_queue {
 	unsigned long nr_running	__attribute__ ((aligned (8)));
+	unsigned long procs_blocked	__attribute__ ((aligned (8)));
 	unsigned int  load_avg_1	__attribute__ ((aligned (8)));
 	unsigned int  load_avg_5	__attribute__ ((packed));
 	unsigned int  load_avg_15	__attribute__ ((packed));
@@ -481,6 +488,40 @@ struct stats_pwr_cpufreq {
 
 #define STATS_PWR_CPUFREQ_SIZE	(sizeof(struct stats_pwr_cpufreq))
 
+/* Structure for hugepages statistics */
+struct stats_huge {
+	unsigned long frhkb			__attribute__ ((aligned (8)));
+	unsigned long tlhkb			__attribute__ ((aligned (8)));
+};
+
+#define STATS_HUGE_SIZE	(sizeof(struct stats_memory))
+
+/*
+ * Structure for weighted CPU frequency statistics.
+ * In activity buffer: First structure is for global CPU utilisation ("all").
+ * Following structures are for each individual CPU (0, 1, etc.)
+ */
+struct stats_pwr_wghfreq {
+	unsigned long long 	time_in_state	__attribute__ ((aligned (16)));
+	unsigned long 		freq		__attribute__ ((aligned (16)));
+};
+
+#define STATS_PWR_WGHFREQ_SIZE	(sizeof(struct stats_pwr_wghfreq))
+
+/*
+ * Structure for USB devices plugged into the system.
+ */
+struct stats_pwr_usb {
+	unsigned int  bus_nr				__attribute__ ((aligned (4)));
+	unsigned int  vendor_id				__attribute__ ((packed));
+	unsigned int  product_id			__attribute__ ((packed));
+	unsigned int  bmaxpower				__attribute__ ((packed));
+	char	      manufacturer[MAX_MANUF_LEN];
+	char	      product[MAX_PROD_LEN];
+};
+
+#define STATS_PWR_USB_SIZE	(sizeof(struct stats_pwr_usb))
+
 /*
  ***************************************************************************
  * Prototypes for functions used to read system statistics
@@ -498,26 +539,14 @@ extern void
 	read_loadavg(struct stats_queue *);
 extern void
 	read_meminfo(struct stats_memory *);
-extern unsigned int
+extern void
 	read_vmstat_swap(struct stats_swap *);
 extern void
-	read_stat_swap(struct stats_swap *);
-extern int
 	read_vmstat_paging(struct stats_paging *);
-extern void
-	read_stat_paging(struct stats_paging *);
 extern void
 	read_diskstats_io(struct stats_io *);
 extern void
-	read_ppartitions_io(struct stats_io *);
-extern void
-	read_stat_io(struct stats_io *);
-extern void
 	read_diskstats_disk(struct stats_disk *, int, int);
-extern void
-	read_partitions_disk(struct stats_disk *, int);
-extern void
-	read_stat_disk(struct stats_disk *, int);
 extern void
 	read_tty_driver_serial(struct stats_serial *, int);
 extern void
@@ -562,6 +591,12 @@ extern void
 	read_net_udp6(struct stats_net_udp6 *);
 extern void
 	read_cpuinfo(struct stats_pwr_cpufreq *, int);
+extern void
+	read_meminfo_huge(struct stats_huge *);
+extern void
+	read_time_in_state(struct stats_pwr_wghfreq *, int, int);
+extern void
+	read_bus_usb_dev(struct stats_pwr_usb *, int);
 
 /*
  ***************************************************************************
@@ -578,15 +613,14 @@ extern int
 extern int
 	get_diskstats_dev_nr(int, int);
 extern int
-	get_ppartitions_dev_nr(int);
-extern unsigned int
-	get_disk_io_nr(void);
-extern int
-	get_disk_nr(unsigned int *);
+	get_disk_nr(unsigned int);
 extern int
 	get_cpu_nr(unsigned int);
 extern int
-	get_irqcpu_nr(int, int);
-
+	get_irqcpu_nr(char *, int, int);
+extern int
+	get_freq_nr(void);
+extern int
+	get_usb_nr(void);
 
 #endif /* _RD_STATS_H */

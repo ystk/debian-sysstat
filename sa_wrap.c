@@ -1,6 +1,6 @@
 /*
  * sysstat - sa_wrap.c: Functions used in activity.c
- * (C) 1999-2009 by Sebastien GODARD (sysstat <at> orange.fr)
+ * (C) 1999-2011 by Sebastien GODARD (sysstat <at> orange.fr)
  *
  ***************************************************************************
  * This program is free software; you can redistribute it and/or modify it *
@@ -21,131 +21,10 @@
 
 #include "sa.h"
 #include "rd_stats.h"
+#include "rd_sensors.h"
 
 extern unsigned int flags;
 extern struct record_header record_hdr;
-
-/*
- ***************************************************************************
- * Count number of interrupts that are in /proc/stat file.
- * Truncate the number of different individual interrupts to NR_IRQS.
- *
- * IN:
- * @a	Activity structure.
- *
- * RETURNS:
- * Number of interrupts, including total number of interrupts.
- * Value in [0, NR_IRQS + 1].
- ***************************************************************************
- */
-__nr_t wrap_get_irq_nr(struct activity *a)
-{
-	__nr_t n;
-
-	if ((n = get_irq_nr()) > (a->bitmap->b_size + 1)) {
-		n = a->bitmap->b_size + 1;
-	}
-	
-	return n;
-}
-
-/*
- ***************************************************************************
- * Find number of serial lines that support tx/rx accounting
- * in /proc/tty/driver/serial file.
- *
- * IN:
- * @a	Activity structure.
- *
- * RETURNS:
- * Number of serial lines supporting tx/rx accouting + a pre-allocation
- * constant.
- ***************************************************************************
- */
-__nr_t wrap_get_serial_nr(struct activity *a)
-{
-	__nr_t n = 0;
-	
-	if ((n = get_serial_nr()) > 0)
-		return n + NR_SERIAL_PREALLOC;
-	
-	return 0;
-}
-
-/*
- ***************************************************************************
- * Find number of interfaces (network devices) that are in /proc/net/dev
- * file.
- *
- * IN:
- * @a	Activity structure.
- *
- * RETURNS:
- * Number of network interfaces + a pre-allocation constant.
- ***************************************************************************
- */
-__nr_t wrap_get_iface_nr(struct activity *a)
-{
-	__nr_t n = 0;
-	
-	if ((n = get_iface_nr()) > 0)
-		return n + NR_IFACE_PREALLOC;
-	
-	return 0;
-}
-
-/*
- ***************************************************************************
- * Compute number of CPU structures to allocate.
- *
- * IN:
- * @a	Activity structure.
- *
- * RETURNS:
- * Number of structures (value in [1, NR_CPUS + 1]).
- * 1 means that there is only one proc and non SMP kernel.
- * 2 means one proc and SMP kernel.
- * Etc.
- ***************************************************************************
- */
-__nr_t wrap_get_cpu_nr(struct activity *a)
-{
-	return (get_cpu_nr(a->bitmap->b_size) + 1);
-}
-
-/*
- ***************************************************************************
- * Get number of devices in /proc/{diskstats,partitions}
- * or number of disk_io entries in /proc/stat.
- * Always done, since disk stats must be read at least for sar -b
- * if not for sar -d.
- *
- * IN:
- * @a	Activity structure.
- *
- * RETURNS:
- * Number of devices + a pre-allocation constant.
- ***************************************************************************
- */
-__nr_t wrap_get_disk_nr(struct activity *a)
-{
-	__nr_t n = 0;
-	unsigned int f = COLLECT_PARTITIONS(a->opt_flags);
-	
-	n = get_disk_nr(&f);
-
-	if (f == READ_DISKSTATS) {
-		flags |= S_F_HAS_DISKSTATS;
-	}
-	else if (f == READ_PPARTITIONS) {
-		flags |= S_F_HAS_PPARTITIONS;
-	}
-	
-	if (n > 0)
-		return n + NR_DISK_PREALLOC;
-	
-	return 0;
-}
 
 /*
  ***************************************************************************
@@ -273,10 +152,8 @@ __read_funct_t wrap_read_swap(struct activity *a)
 	struct stats_swap *st_swap
 		= (struct stats_swap *) a->_buf0;
 
-	/* Try to read stats from /proc/vmstat, otherwise from /proc/stat */
-	if (!read_vmstat_swap(st_swap)) {
-		read_stat_swap(st_swap);
-	}
+	/* Read stats from /proc/vmstat */
+	read_vmstat_swap(st_swap);
 	
 	return;
 }
@@ -297,10 +174,8 @@ __read_funct_t wrap_read_paging(struct activity *a)
 	struct stats_paging *st_paging
 		= (struct stats_paging *) a->_buf0;
 
-	/* Try to read stats from /proc/vmstat, otherwise from /proc/stat */
-	if (!read_vmstat_paging(st_paging)) {
-		read_stat_paging(st_paging);
-	}
+	/* Read stats from /proc/vmstat */
+	read_vmstat_paging(st_paging);
 	
 	return;
 }
@@ -321,16 +196,8 @@ __read_funct_t wrap_read_io(struct activity *a)
 	struct stats_io *st_io
 		= (struct stats_io *) a->_buf0;
 
-	/* Try to read stats from /proc/diskstats, /proc/partitions or /proc/stat */
-	if (HAS_DISKSTATS(flags)) {
-		read_diskstats_io(st_io);
-	}
-	else if (HAS_PPARTITIONS(flags)) {
-		read_ppartitions_io(st_io);
-	}
-	else {
-		read_stat_io(st_io);
-	}
+	/* Read stats from /proc/diskstats */
+	read_diskstats_io(st_io);
 
 	return;
 }
@@ -351,16 +218,8 @@ __read_funct_t wrap_read_disk(struct activity *a)
 	struct stats_disk *st_disk
 		= (struct stats_disk *) a->_buf0;
 
-	/* Try to read stats from /proc/diskstats, /proc/partitions or /proc/stat */
-	if (HAS_DISKSTATS(flags)) {
-		read_diskstats_disk(st_disk, a->nr, COLLECT_PARTITIONS(a->opt_flags));
-	}
-	else if (HAS_PPARTITIONS(flags)) {
-		read_partitions_disk(st_disk, a->nr);
-	}
-	else {
-		read_stat_disk(st_disk, a->nr);
-	}
+	/* Read stats from /proc/diskstats */
+	read_diskstats_disk(st_disk, a->nr, COLLECT_PARTITIONS(a->opt_flags));
 
 	return;
 }
@@ -825,4 +684,368 @@ __read_funct_t wrap_read_cpuinfo(struct activity *a)
 	read_cpuinfo(st_pwr_cpufreq, a->nr);
 	
 	return;
+}
+
+/*
+ ***************************************************************************
+ * Read fan statistics.
+ *
+ * IN:
+ * @a  Activity structure.
+ *
+ * OUT:
+ * @a  Activity structure with statistics.
+ ***************************************************************************
+ */
+__read_funct_t wrap_read_fan(struct activity *a)
+{
+	struct stats_pwr_fan *st_pwr_fan
+		= (struct stats_pwr_fan *) a->_buf0;
+
+	/* Read fan stats */
+	read_fan(st_pwr_fan, a->nr);
+
+	return;
+}
+
+/*
+ ***************************************************************************
+ * Read temperature statistics.
+ *
+ * IN:
+ * @a  Activity structure.
+ *
+ * OUT:
+ * @a  Activity structure with statistics.
+ ***************************************************************************
+ */
+__read_funct_t wrap_read_temp(struct activity *a)
+{
+	struct stats_pwr_temp *st_pwr_temp
+		= (struct stats_pwr_temp *) a->_buf0;
+
+	/* Read temperature stats */
+	read_temp(st_pwr_temp, a->nr);
+
+	return;
+}
+
+/*
+ ***************************************************************************
+ * Read voltage input statistics.
+ *
+ * IN:
+ * @a  Activity structure.
+ *
+ * OUT:
+ * @a  Activity structure with statistics.
+ ***************************************************************************
+ */
+__read_funct_t wrap_read_in(struct activity *a)
+{
+	struct stats_pwr_in *st_pwr_in
+		= (struct stats_pwr_in *) a->_buf0;
+
+	/* Read voltage input stats */
+	read_in(st_pwr_in, a->nr);
+
+	return;
+}
+
+/*
+ ***************************************************************************
+ * Read hugepages statistics.
+ *
+ * IN:
+ * @a	Activity structure.
+ *
+ * OUT:
+ * @a	Activity structure with statistics.
+ ***************************************************************************
+ */
+__read_funct_t wrap_read_meminfo_huge(struct activity *a)
+{
+	struct stats_huge *st_huge
+		= (struct stats_huge *) a->_buf0;
+
+	/* Read hugepages stats */
+	read_meminfo_huge(st_huge);
+
+	return;
+}
+
+/*
+ ***************************************************************************
+ * Read weighted CPU frequency statistics.
+ *
+ * IN:
+ * @a	Activity structure.
+ *
+ * OUT:
+ * @a	Activity structure with statistics.
+ ***************************************************************************
+ */
+__read_funct_t wrap_read_time_in_state(struct activity *a)
+{
+	__nr_t	cpu = 0;
+	int j;
+	struct stats_pwr_wghfreq *st_pwr_wghfreq
+		= (struct stats_pwr_wghfreq *) a->_buf0;
+	struct stats_pwr_wghfreq *st_pwr_wghfreq_i, *st_pwr_wghfreq_j, *st_pwr_wghfreq_all_j;
+
+	while (cpu < (a->nr - 1)) {
+		/* Read current CPU time-in-state data */
+		st_pwr_wghfreq_i = st_pwr_wghfreq + (cpu + 1) * a->nr2;
+		read_time_in_state(st_pwr_wghfreq_i, cpu, a->nr2);
+
+		/* Also save data for CPU 'all' */
+		for (j = 0; j < a->nr2; j++) {
+			st_pwr_wghfreq_j     = st_pwr_wghfreq_i + j;	/* CPU #cpu, state #j */
+			st_pwr_wghfreq_all_j = st_pwr_wghfreq   + j;	/* CPU #all, state #j */
+			if (!cpu) {
+				/* Assume that possible frequencies are the same for all CPUs */
+				st_pwr_wghfreq_all_j->freq = st_pwr_wghfreq_j->freq;
+			}
+			st_pwr_wghfreq_all_j->time_in_state += st_pwr_wghfreq_j->time_in_state;
+		}
+		cpu++;
+	}
+
+	/* Special processing for non SMP kernels: Only CPU 'all' is available */
+	if (a->nr == 1) {
+		read_time_in_state(st_pwr_wghfreq, 0, a->nr2);
+	}
+	else {
+		for (j = 0; j < a->nr2; j++) {
+			st_pwr_wghfreq_all_j = st_pwr_wghfreq + j;	/* CPU #all, state #j */
+			st_pwr_wghfreq_all_j->time_in_state /= (a->nr - 1);
+		}
+	}
+
+	return;
+}
+
+/*
+ ***************************************************************************
+ * Read USB devices statistics.
+ *
+ * IN:
+ * @a  Activity structure.
+ *
+ * OUT:
+ * @a  Activity structure with statistics.
+ ***************************************************************************
+ */
+__read_funct_t wrap_read_bus_usb_dev(struct activity *a)
+{
+	struct stats_pwr_usb *st_pwr_usb
+		= (struct stats_pwr_usb *) a->_buf0;
+
+	/* Read USB devices stats */
+	read_bus_usb_dev(st_pwr_usb, a->nr);
+
+	return;
+}
+
+/*
+ ***************************************************************************
+ * Count number of interrupts that are in /proc/stat file.
+ * Truncate the number of different individual interrupts to NR_IRQS.
+ *
+ * IN:
+ * @a	Activity structure.
+ *
+ * RETURNS:
+ * Number of interrupts, including total number of interrupts.
+ * Value in [0, NR_IRQS + 1].
+ ***************************************************************************
+ */
+__nr_t wrap_get_irq_nr(struct activity *a)
+{
+	__nr_t n;
+
+	if ((n = get_irq_nr()) > (a->bitmap->b_size + 1)) {
+		n = a->bitmap->b_size + 1;
+	}
+
+	return n;
+}
+
+/*
+ ***************************************************************************
+ * Find number of serial lines that support tx/rx accounting
+ * in /proc/tty/driver/serial file.
+ *
+ * IN:
+ * @a	Activity structure.
+ *
+ * RETURNS:
+ * Number of serial lines supporting tx/rx accouting + a pre-allocation
+ * constant.
+ ***************************************************************************
+ */
+__nr_t wrap_get_serial_nr(struct activity *a)
+{
+	__nr_t n = 0;
+
+	if ((n = get_serial_nr()) > 0)
+		return n + NR_SERIAL_PREALLOC;
+
+	return 0;
+}
+
+/*
+ ***************************************************************************
+ * Find number of interfaces (network devices) that are in /proc/net/dev
+ * file.
+ *
+ * IN:
+ * @a	Activity structure.
+ *
+ * RETURNS:
+ * Number of network interfaces + a pre-allocation constant.
+ ***************************************************************************
+ */
+__nr_t wrap_get_iface_nr(struct activity *a)
+{
+	__nr_t n = 0;
+
+	if ((n = get_iface_nr()) > 0)
+		return n + NR_IFACE_PREALLOC;
+
+	return 0;
+}
+
+/*
+ ***************************************************************************
+ * Compute number of CPU structures to allocate.
+ *
+ * IN:
+ * @a	Activity structure.
+ *
+ * RETURNS:
+ * Number of structures (value in [1, NR_CPUS + 1]).
+ * 1 means that there is only one proc and non SMP kernel.
+ * 2 means one proc and SMP kernel.
+ * Etc.
+ ***************************************************************************
+ */
+__nr_t wrap_get_cpu_nr(struct activity *a)
+{
+	return (get_cpu_nr(a->bitmap->b_size) + 1);
+}
+
+/*
+ ***************************************************************************
+ * Get number of devices in /proc/diskstats.
+ * Always done, since disk stats must be read at least for sar -b
+ * if not for sar -d.
+ *
+ * IN:
+ * @a	Activity structure.
+ *
+ * RETURNS:
+ * Number of devices + a pre-allocation constant.
+ ***************************************************************************
+ */
+__nr_t wrap_get_disk_nr(struct activity *a)
+{
+	__nr_t n = 0;
+	unsigned int f = COLLECT_PARTITIONS(a->opt_flags);
+
+	if ((n = get_disk_nr(f)) > 0)
+		return n + NR_DISK_PREALLOC;
+
+	return 0;
+}
+
+/*
+ ***************************************************************************
+ * Get number of fan structures to allocate.
+ *
+ * IN:
+ * @a  Activity structure.
+ *
+ * RETURNS:
+ * Number of structures.
+ ***************************************************************************
+ */
+__nr_t wrap_get_fan_nr(struct activity *a)
+{
+	return (get_fan_nr());
+}
+
+/*
+ ***************************************************************************
+ * Get number of temp structures to allocate.
+ *
+ * IN:
+ * @a  Activity structure.
+ *
+ * RETURNS:
+ * Number of structures.
+ ***************************************************************************
+ */
+__nr_t wrap_get_temp_nr(struct activity *a)
+{
+	return (get_temp_nr());
+}
+
+/*
+ ***************************************************************************
+ * Get number of voltage input structures to allocate.
+ *
+ * IN:
+ * @a  Activity structure.
+ *
+ * RETURNS:
+ * Number of structures.
+ ***************************************************************************
+ */
+__nr_t wrap_get_in_nr(struct activity *a)
+{
+	return (get_in_nr());
+}
+
+/*
+ ***************************************************************************
+ * Count number of possible frequencies for CPU#0.
+ *
+ * IN:
+ * @a   Activity structure.
+ *
+ * RETURNS:
+ * Number of CPU frequencies + a pre-allocation constant.
+ ***************************************************************************
+ */
+__nr_t wrap_get_freq_nr(struct activity *a)
+{
+	__nr_t n = 0;
+
+	if ((n = get_freq_nr()) > 0)
+		return n + NR_FREQ_PREALLOC;
+
+	return 0;
+}
+
+/*
+ ***************************************************************************
+ * Count number of USB devices plugged into the system.
+ *
+ * IN:
+ * @a	Activity structure.
+ *
+ * RETURNS:
+ * Number of USB devices + a pre-allocation constant.
+ ***************************************************************************
+ */
+__nr_t wrap_get_usb_nr(struct activity *a)
+{
+	__nr_t n = 0;
+
+	if ((n = get_usb_nr()) >= 0)
+		/* Return a positive number even if no USB devices have been found */
+		return (n + NR_USB_PREALLOC);
+	
+	return 0;
 }

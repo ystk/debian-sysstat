@@ -1,40 +1,69 @@
-Makefile fixes.
+From: Robert Luberda <robert@debian.org>
+Date: Tue, 23 Mar 2010 22:04:47 +0100
+Subject: 00-Makefile
 
---- sysstat-9.0.6.1.orig/Makefile.in
-+++ sysstat-9.0.6.1/Makefile.in
-@@ -52,7 +52,6 @@
- endif
- MAN1_DIR = $(MAN_DIR)/man1
- MAN8_DIR = $(MAN_DIR)/man8
--
- ifndef DOC_DIR
- DOC_DIR = @docdir@
- endif
-@@ -61,9 +60,9 @@
+Makefile fixes.
+---
+ Makefile.in |   42 ++++++++++++++++++++++--------------------
+ 1 file changed, 22 insertions(+), 20 deletions(-)
+
+diff --git a/Makefile.in b/Makefile.in
+index b09a832..eff1b1a 100644
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -69,9 +69,9 @@ NLS_DIR = $(PREFIX)/share/locale
  SYSCONFIG_DIR = @SYSCONFIG_DIR@
  
  # Compiler flags
 -CFLAGS = @CFLAGS@ -Wall -Wstrict-prototypes -pipe -O2
-+CFLAGS = @CFLAGS@ -Wall -Wstrict-prototypes -pipe 
++CFLAGS = @CFLAGS@ -Wall -Wstrict-prototypes -pipe
  DFLAGS = @DFLAGS@
--LFLAGS =  -s
+-LFLAGS = @STRIP@
 +LFLAGS = @LDFLAGS@
- # DFLAGS may already contain SMP_RACE definition
  DFLAGS += -DSA_DIR=\"$(SA_DIR)\" -DSADC_PATH=\"$(SADC_PATH)\"
+ DFLAGS += $(DFSENSORS)
  
-@@ -210,8 +209,9 @@
+@@ -239,8 +239,9 @@ else
  locales:
  endif
  
 -nls/sysstat.pot: $(wildcard *.c)
 -	$(XGETTEXT) -o $@ -k_ --msgid-bugs-address="sysstat <at> orange.fr" $^
-+.PHONY: nls/sysstat.pot
++#.PHONY: nls/sysstat.pot
 +nls/sysstat.pot: | $(wildcard *.c)
 +	$(XGETTEXT) -o $@ -k_ --msgid-bugs-address="sysstat <at> orange.fr" $|
  
  # Phony targets
  .PHONY: clean distclean install install_base install_all uninstall \
-@@ -319,7 +319,7 @@
+@@ -273,9 +274,6 @@ ifeq ($(INSTALL_DOC),y)
+ 	$(INSTALL_DATA) $(MANGRPARG) man/nfsiostat.1 $(DESTDIR)$(MAN1_DIR)
+ 	rm -f $(DESTDIR)$(MAN1_DIR)/cifsiostat.1*
+ 	$(INSTALL_DATA) $(MANGRPARG) man/cifsiostat.1 $(DESTDIR)$(MAN1_DIR)
+-ifeq ($(INSTALL_ISAG),y)
+-	$(INSTALL_DATA) $(MANGRPARG) contrib/isag/isag.1 $(DESTDIR)$(MAN1_DIR)
+-endif
+ ifeq ($(COMPRESS_MANPG),y)
+ 	$(ZIP) $(DESTDIR)$(MAN8_DIR)/sa1.8
+ 	$(ZIP) $(DESTDIR)$(MAN8_DIR)/sa2.8
+@@ -306,8 +304,15 @@ ifdef REQUIRE_NLS
+ 	done
+ endif
+ 
+-install_base: all sa1 sa2 sysstat.sysconfig install_man install_nls \
+-	contrib/isag/isag
++install_isag: contrib/isag/isag
++ifeq ($(INSTALL_ISAG),y)
++	mkdir -p $(DESTDIR)$(BIN_DIR)
++	mkdir -p $(DESTDIR)$(MAN1_DIR)
++	$(INSTALL_BIN) contrib/isag/isag $(DESTDIR)$(BIN_DIR)
++	$(INSTALL_DATA) $(MANGRPARG) contrib/isag/isag.1 $(DESTDIR)$(MAN1_DIR)
++endif
++
++install_base: all sa1 sa2 sysstat.sysconfig install_man install_nls install_isag
+ 	mkdir -p $(DESTDIR)$(SA_LIB_DIR)
+ 	mkdir -p $(DESTDIR)$(SA_DIR)
+ ifeq ($(CLEAN_SA_DIR),y)
+@@ -316,7 +321,7 @@ ifeq ($(CLEAN_SA_DIR),y)
  	-rmdir --ignore-fail-on-non-empty $(DESTDIR)$(SA_DIR)/[0-9]?????
  endif
  	mkdir -p $(DESTDIR)$(BIN_DIR)
@@ -43,7 +72,13 @@ Makefile fixes.
  	mkdir -p $(DESTDIR)$(SYSCONFIG_DIR)
  	$(INSTALL_BIN) sa1 $(DESTDIR)$(SA_LIB_DIR)
  	$(INSTALL_BIN) sa2 $(DESTDIR)$(SA_LIB_DIR)
-@@ -335,12 +335,12 @@
+@@ -328,18 +333,15 @@ endif
+ 	$(INSTALL_BIN) pidstat $(DESTDIR)$(BIN_DIR)
+ 	$(INSTALL_BIN) nfsiostat $(DESTDIR)$(BIN_DIR)
+ 	$(INSTALL_BIN) cifsiostat $(DESTDIR)$(BIN_DIR)
+-ifeq ($(INSTALL_ISAG),y)
+-	$(INSTALL_BIN) contrib/isag/isag $(DESTDIR)$(BIN_DIR)
+-endif
  	$(INSTALL_DATA) sysstat.ioconf $(DESTDIR)$(SYSCONFIG_DIR)
  	$(INSTALL_DATA) sysstat.sysconfig $(DESTDIR)$(SYSCONFIG_DIR)/sysstat
  ifeq ($(INSTALL_DOC),y)
@@ -61,13 +96,13 @@ Makefile fixes.
 +#	$(INSTALL_DATA) *.lsm $(DESTDIR)$(DOC_DIR)
  endif
  
- install_all: install_base crontab sysstat \
-@@ -542,7 +542,7 @@
- 	rm -f sadc sar sadf iostat mpstat pidstat *.o *.a core TAGS
+ install_all: install_base cron/crontab sysstat \
+@@ -479,7 +481,7 @@ clean:
+ 	rm -f sadc sar sadf iostat mpstat pidstat nfsiostat cifsiostat *.o *.a core TAGS
  	find nls -name "*.gmo" -exec rm -f {} \;
  
 -almost-distclean: clean nls/sysstat.pot
-+almost-distclean: clean 
- 	rm -f sa1 sa2 sysstat crontab version.h sysconfig.h
- 	rm -f sysstat.sysconfig sysstat.crond sysstat.cron.daily
- 	rm -f sysstat.cron.hourly sysstat.crond.sample sysstat.crond.sample.in
++almost-distclean: clean
+ 	rm -f sa1 sa2 sysstat cron/crontab version.h sysconfig.h
+ 	rm -f sysstat.sysconfig cron/sysstat.crond cron/sysstat.cron.daily
+ 	rm -f cron/sysstat.cron.hourly cron/sysstat.crond.sample cron/sysstat.crond.sample.in

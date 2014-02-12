@@ -1,10 +1,10 @@
-.TH MPSTAT 1 "MAY 2009" Linux "Linux User's Manual" -*- nroff -*-
+.TH MPSTAT 1 "AUGUST 2011" Linux "Linux User's Manual" -*- nroff -*-
 .SH NAME
 mpstat \- Report processors related statistics.
 .SH SYNOPSIS
-.B mpstat [ -A ] [ -I { SUM | CPU | ALL } ] [ -u ] [ -P {
+.B mpstat [ -A ] [ -I { SUM | CPU | SCPU | ALL } ] [ -u ] [ -P {
 .I cpu
-.B [,...] | ALL } ] [ -V ] [
+.B [,...] | ON | ALL } ] [ -V ] [
 .I interval
 .B [
 .I count
@@ -46,7 +46,7 @@ command generates reports continuously.
 .IP -A
 This option is equivalent to specifying
 .BR "-I ALL -u -P ALL"
-.IP "-I { SUM | CPU | ALL }"
+.IP "-I { SUM | CPU | SCPU | ALL }"
 Report interrupts statistics.
 
 With the
@@ -76,17 +76,26 @@ With the
 keyword, the number of each individual interrupt received per
 second by the CPU or CPUs is displayed.
 
+With the
+.B SCPU
+keyword, the number of each individual software interrupt received per
+second by the CPU or CPUs is displayed. This option works only
+with kernels 2.6.31 and later.
+
 The
 .B ALL
 keyword is equivalent to specifying all the keywords above and
 therefore all the interrupts statistics are displayed.
 .RE
 .RE
-.IP "-P { cpu [,...] | ALL }"
+.IP "-P { cpu [,...] | ON | ALL }"
 Indicate the processor number for which statistics are to be reported.
 .I cpu
 is the processor number. Note that processor 0 is the first processor.
 The
+.B ON
+keyword indicates that statistics are to be reported for every
+online processor, whereas the
 .B ALL
 keyword indicates that statistics are to be reported for all processors.
 .IP -u

@@ -1,18 +1,18 @@
-Summary: 	SAR, SADF, MPSTAT, IOSTAT and PIDSTAT for Linux
+Summary: 	SAR, SADF, MPSTAT, IOSTAT, NFSIOSTAT, CIFSIOSTAT and PIDSTAT for Linux
 Name: 		sysstat
-Version: 	9.0.6.1
+Version: 	10.0.5
 Release: 	1
 License: 	GPL
 Group: 		Applications/System
 Source0: 	%{name}-%{version}.tar.gz
 URL:		http://pagesperso-orange.fr/sebastien.godard/
-Packager:	Damien Faure <damien-jn.faure@bull.net>
+Packager:	Sebastien Godard <sysstat _at_ orange.fr>
 BuildRoot:	%{_tmppath}/%{name}-%{version}-root-%(id -u -n)
 Requires:	gettext
 
 %description
-The sysstat package contains the sar, sadf, mpstat, iostat, pidstat
-and sa tools for Linux.
+The sysstat package contains the sar, sadf, mpstat, iostat, pidstat,
+nfsiostat, cifsiostat and sa tools for Linux.
 The sar command collects and reports system activity information.
 The information collected by sar can be saved in a file in a binary
 format for future inspection. The statistics reported by sar concern
@@ -25,6 +25,8 @@ various formats (CSV, XML, etc.).
 The iostat command reports CPU utilization and I/O statistics for disks.
 The mpstat command reports global and per-processor statistics.
 The pidstat command reports statistics for Linux tasks (processes).
+The nfsiostat command reports I/O statistics for network filesystems.
+The cifsiostat command reports I/O statistics for CIFS filesystems.
 
 %prep 
 %setup 
@@ -48,7 +50,7 @@ mkdir -p $RPM_BUILD_ROOT/etc/sysconfig
 install -m 644 sysstat.sysconfig $RPM_BUILD_ROOT/etc/sysconfig/sysstat
 install -m 644 sysstat.ioconf $RPM_BUILD_ROOT/etc/sysconfig/sysstat.ioconf
 mkdir -p $RPM_BUILD_ROOT/etc/cron.d
-install -m 644 sysstat.crond.sample $RPM_BUILD_ROOT/etc/cron.d/sysstat
+install -m 644 cron/sysstat.crond.sample $RPM_BUILD_ROOT/etc/cron.d/sysstat
 mkdir -p $RPM_BUILD_ROOT/etc/rc2.d
 cd $RPM_BUILD_ROOT/etc/rc2.d && ln -sf ../init.d/sysstat S01sysstat
 mkdir -p $RPM_BUILD_ROOT/etc/rc3.d
