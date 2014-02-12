@@ -99,7 +99,8 @@ The following people have contributed to 'sysstat' in one way or another:
 	hotplug CPU to sysstat.
 
 	Ivana Varekova <varekova [at] redhat.com> added support for iostat
-	NFS statistics. Ivana also added support for autoconf.
+	NFS statistics. Ivana also added support for autoconf, and created
+	cifsiostat command.
 
 	Nils Philippsen <nphilipp [at] redhat.com> made history configurable.
 
@@ -120,6 +121,17 @@ The following people have contributed to 'sysstat' in one way or another:
 	option -l to pidstat to display the process command name and
 	arguments.
 
+	Mario Konrad <Mario.Konrad [at] gmx.net> added regular expressions
+	support to pidstat'x option -C. He also added option -s to pidstat
+	to display task stack statistics.
+
+	Jan Kaluza <jkaluza [at] redhat.com> contributed several patches
+	to sysstat. Among them, he added some more power management
+	statistics to sar.
+
+	Alain Chéreau <cheralain [at] googlemail.com> added support for
+	disk groups statistics to iostat.
+
 I would also thank the following people for their hints or bug reports
 (in alphabetical order):
 
@@ -128,11 +140,15 @@ I would also thank the following people for their hints or bug reports
 	Chuck Blake <cb@mit[...].edu>
 	Michael Blakeley <mike@bla[...].com>
 	Pascal Bleser <pbleser@ato[...].com>
+	Lodewijk Bonebakker <jlbonebakker@gma[...].com>
+	Andrey Borzenkov <arvidjaar@gma[...].com>
 	Jesse Brandeburg <jesse.brandeburg@int[...].com>
 	Xavier Bru <xavier.bru@bul[...].net>
 	Jason Burnett <jason@jnj[...].org>
+	Fabricio Ceolin <ceolin@ule[...].com
+	Vitezslav Cizek <vcizek@sus[...].cz>
 	Mark J. Cox <mjc@red[...].com>
-	Jean Dagenais <jean.dagenais@integral.com>
+	Jean Dagenais <jean.dagenais@int[...].com>
 	Nicolas Denis <denisn@wan[...].fr>
 	Andrew Donkin <ard@wai[...].nz>
 	Greg Edwards <edwardsg@sgi[...].com>
@@ -141,8 +157,11 @@ I would also thank the following people for their hints or bug reports
 	Damien Faure <damien-jn.faure@bul[...].net>
 	Dr. David Alan Gilbert <dave@tre[...].org>
 	David Gesswein <djg@drs[...].com>
+	Frank Glinka <glinkaf@uni[...].de>
 	Ladislav Hagara <ladislav.hagara@uno[...].cz>
 	Don Harrop <don@swb[...].com>
+	Jürgen Heinemann <heinemann.juergen@hjc[...].de>
+	Kei Ishida <ishida.kei@oss[...].jp>
 	Tatsuo Ito <tito@mir[...].com>
 	David S. Jackson <dsj@syl[...].net>
 	Erik Jacobson <erikj@sub[...].com>	
@@ -156,11 +175,13 @@ I would also thank the following people for their hints or bug reports
 	Neculai Macarie <macarie.neculai@nex[...].com>
 	Robert Macaulay <Robert_Macaulay@Del[...].com>
 	Pierre Machard <pmachard@deb[...].org>
+	Jérôme Marchand <jmarchan@red[...].com>
 	Alan Matsuoka <alanm@red[...].com>
 	Rodney J. Mertz <rjm@elv[...].com>
 	Roy Millar <100044.14@com[...].com>
 	Chris Minshull <CMinshull@nyx[...].com>
 	Pascal Monschein <ext.astek.monschein@snc[...].fr>
+	Chris Morrow <cmorrow@ver[...].com>
 	David J. Morse <David_J_Morse@Del[...].com>
 	Hariprasad Nellitheertha <hari@in.[...].com>
 	Giulio Orsero <giulioo@pob[...].com>
@@ -173,6 +194,7 @@ I would also thank the following people for their hints or bug reports
 	Paul Rivoli <paul@kbs[...].au>
 	Scott Rochford <Scott_Rochford@DEL[...].com>
 	Rolphin <rolphin@fre[...].fr>
+	Jeroen Roovers <jer@gen[...].org>
 	Pavol Rusnak <prusnak@sus[...].cz>
 	Joseph E. Sacco <jsacco@ear[...].net>
 	Sachin Sant <sachinp@in.[...].com>
@@ -181,6 +203,7 @@ I would also thank the following people for their hints or bug reports
 	Tan Shao Yi <tansy@tan[...].org>
 	Yibin Shen <zituan@taobao.com>
 	Lee Schermerhorn <lee.schermerhorn@hp.[...].com>
+	Peter Schiffer <pschiffe@red[...].com>
 	Benno Schulenberg <bensberg@jus[...].net>
 	Michel Simoni <m_simoni@clu[...].fr>
 	Gabrielle Singleton <gelle@umi[...].edu>
@@ -191,6 +214,7 @@ I would also thank the following people for their hints or bug reports
 	Mike Sweger <mikesw@whi[...].net>
 	Don Totten <dontotten@ibm[...].net>
 	Stephen Tweedie <sct@red[...].com>
+	Petr Uzel <petr.uzel@sus[...].cz>
 	Thomas Weber <TWEBER@de.[...].com>
 	Yongjun Wei <yjwei@nan[...].com>
 	Stefan Wild <SWILD@de.[...].com>
@@ -199,6 +223,7 @@ I would also thank the following people for their hints or bug reports
 	Urban Widmark <urban@sve[...].se>
 	Yu Yongcong <yuyc@cn.[...].com>
 	Peter Zaitsev <pz@spy[...].ru>
+	Zhen Zhang <furykerry@gma[...].com>
 
 --	
 Sebastien Godard (sysstat <at> orange.fr) is the author and the current

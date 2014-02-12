@@ -1,11 +1,14 @@
-.TH SAR 1 "MAY 2009" Linux "Linux User's Manual" -*- nroff -*-
+.TH SAR 1 "MAY 2011" Linux "Linux User's Manual" -*- nroff -*-
 .SH NAME
 sar \- Collect, report, or save system activity information.
 .SH SYNOPSIS
-.B sar [ -A ] [ -b ] [ -B ] [ -C ] [ -d ] [ -h ] [ -i
+.B sar [ -A ] [ -b ] [ -B ] [ -C ] [ -d ] [ -h ] [ -H ] [ -i
 .I interval
-.B ] [ -m ] [ -p ] [ -q ] [ -r ] [ -R ] [ -S ] [ -t ] [ -u [ ALL ] ]
+.B ] [ -p ] [ -q ] [ -r ] [ -R ] [ -S ] [ -t ] [ -u [ ALL ] ]
 [ -v ] [ -V ] [ -w ] [ -W ] [ -y ]
+.B [ -m {
+.I keyword
+.B [,...] | ALL } ]
 .B [ -n {
 .I keyword
 .B [,...] | ALL } ]
@@ -89,8 +92,7 @@ You can select information about specific system activities using
 flags. Not specifying any flags selects only CPU activity.
 Specifying the
 .B -A
-flag is equivalent to specifying
-.BR "-bBdqrRSvwWy -I SUM -I XALL -n ALL -u ALL -P ALL".
+flag selects all possible activities.
 
 The default version of the
 .B sar
@@ -109,7 +111,7 @@ command as a background process. The syntax for this is:
 
 .B sar -o datafile interval count >/dev/null 2>&1 &
 
-All data is captured in binary form and saved to a file (datafile).
+All data are captured in binary form and saved to a file (datafile).
 The data can then be selectively displayed with the
 .B sar
 command using the
@@ -136,7 +138,7 @@ command only reports on local activities.
 .SH OPTIONS
 .IP -A
 This is equivalent to specifying
-.BR "-bBdqrRSuvwWy -I SUM -I XALL -n ALL -u ALL -P ALL".
+.BR "-bBdHqrRSuvwWy -I SUM -I XALL -m ALL -n ALL -u ALL -P ALL".
 .IP -b
 Report I/O and transfer rate statistics.
 The following values are displayed:
@@ -163,9 +165,8 @@ Total number of write requests per second issued to physical devices.
 .B bread/s
 .RS
 Total amount of data read from the devices in blocks per second.
-Blocks are equivalent to sectors with 2.4 kernels and newer
-and therefore have a size of 512 bytes. With older kernels, a block is of
-indeterminate size.
+Blocks are equivalent to sectors
+and therefore have a size of 512 bytes.
 .RE
 
 .B bwrtn/s
@@ -174,22 +175,18 @@ Total amount of data written to devices in blocks per second.
 .RE
 .RE
 .IP -B
-Report paging statistics. Some of the metrics below are available
-only with post 2.5 kernels. The following values are displayed:
+Report paging statistics.
+The following values are displayed:
 
 .B pgpgin/s
 .RS
 .RS
 Total number of kilobytes the system paged in from disk per second.
-Note: With old kernels (2.2.x) this value is a number of blocks per
-second (and not kilobytes).
 .RE
 
 .B pgpgout/s
 .RS
 Total number of kilobytes the system paged out to disk per second.
-Note: With old kernels (2.2.x) this value is a number of blocks per
-second (and not kilobytes).
 .RE
 
 .B fault/s
@@ -242,20 +239,18 @@ When reading data from a file, tell
 to display comments that have been inserted by
 .BR sadc .
 .IP -d
-Report activity for each block device (kernels 2.4 and newer only).
-When data is displayed, the device specification
+Report activity for each block device.
+When data are displayed, the device specification
 .I dev m-n
 is generally used (
 .B DEV
 column).
 .B m
-is the major number of the device.
-With recent kernels (post 2.5),
+is the major number of the device and
 .B n
-is the minor number of the device, but is only a sequence number with
-pre 2.5 kernels. Device names may also be pretty-printed if option -p
-is used (see below). Values for fields avgqu-sz, await, svctm and %util
-may be unavailable and displayed as 0.00 with some 2.4 kernels.
+its minor number.
+Device names may also be pretty-printed if option -p
+is used (see below).
 Note that disk activity depends on sadc options "-S DISK" and "-S XDISK"
 to be collected. The following values are displayed:
 
@@ -297,7 +292,8 @@ the time spent servicing them.
 .B svctm
 .RS
 The average service time (in milliseconds) for I/O requests that were issued
-to the device.
+to the device. Warning! Do not trust this field any more. This field will be
+removed in a future sysstat version.
 .RE
 
 .B %util
@@ -328,6 +324,26 @@ parameter is the current daily data file, the
 file. The -f option is exclusive of the -o option.
 .IP -h
 Display a short help message then exit.
+.IP -H
+Report hugepages utilization statistics.
+The following values are displayed:
+
+.B kbhugfree
+.RS
+.RS
+Amount of hugepages memory in kilobytes that is not yet allocated.
+.RE
+
+.B kbhugused
+.RS
+Amount of hugepages memory in kilobytes that has been allocated.
+.RE
+
+.B %hugused
+.RS
+Percentage of total hugepages memory that has been allocated.
+.RE
+.RE
 .IP "-i interval"
 Select data records at seconds as close as possible to the number specified
 by the
@@ -350,15 +366,144 @@ the first 16 interrupts are to be reported, whereas the
 keyword indicates that statistics from all interrupts, including potential
 APIC interrupt sources, are to be reported.
 Note that interrupt statistics depend on sadc option "-S INT" to be collected.
-.IP -m
+.IP "-m { keyword [,...] | ALL }"
 Report power management statistics.
 Note that these statistics depend on sadc option "-S POWER" to be collected.
+
+Possible keywords are
+.BR CPU ,
+.BR FAN ,
+.BR FREQ ,
+.BR IN ,
+.BR TEMP
+and
+.BR USB .
+
+With the
+.B CPU
+keyword, statistics about CPU are reported.
 The following value is displayed:
 
 .B MHz
 .RS
 .RS
-CPU clock frequency in MHz.
+Instantaneous CPU clock frequency in MHz.
+.RE
+
+With the
+.B FAN
+keyword, statistics about fans speed are reported.
+The following values are displayed:
+
+.B rpm
+.RS
+Fan speed expressed in revolutions per minute.
+.RE
+
+.B drpm
+.RS
+This field is calculated as the difference between current fan speed (rpm)
+and its low limit (fan_min).
+.RE
+
+.B DEVICE
+.RS
+Sensor device name.
+.RE
+
+With the
+.B FREQ
+keyword, statistics about CPU clock frequency are reported.
+The following value is displayed:
+
+.B wghMHz
+.RS
+Weighted average CPU clock frequency in MHz.
+Note that the cpufreq-stats driver must be compiled in the
+kernel for this option to work.
+.RE
+
+With the
+.B IN
+keyword, statistics about voltage inputs are reported.
+The following values are displayed:
+
+.B inV
+.RS
+Voltage input expressed in Volts.
+.RE
+
+.B %in
+.RS
+Relative input value. A value of 100% means that
+voltage input has reached its high limit (in_max) whereas
+a value of 0% means that it has reached its low limit (in_min).
+.RE
+
+.B DEVICE
+.RS
+Sensor device name.
+.RE
+
+With the
+.B TEMP
+keyword, statistics about devices temperature are reported.
+The following values are displayed:
+
+.B degC
+.RS
+Device temperature expressed in degrees Celsius.
+.RE
+
+.B %temp
+.RS
+Relative device temperature. A value of 100% means that
+temperature has reached its high limit (temp_max).
+.RE
+
+.B DEVICE
+.RS
+Sensor device name.
+.RE
+
+With the
+.B USB
+keyword, the
+.B sar
+command takes a snapshot of all the USB devices currently plugged into
+the system. At the end of the report,
+.B sar
+will display a summary of all those USB devices.
+The following values are displayed:
+
+.B BUS
+.RS
+Root hub number of the USB device.
+.RE
+
+.B idvendor
+.RS
+Vendor ID number (assigned by USB organization).
+.RE
+
+.B idprod
+.RS
+Product ID number (assigned by Manufacturer).
+.RE
+
+.B maxpower
+.RS
+Maximum power consumption of the device (expressed in mA).
+.RE
+
+.B manufact
+.RS
+Manufacturer name.
+.RE
+
+.B product
+.RS
+Product name.
 .RE
 .RE
 .IP "-n { keyword [,...] | ALL }"
@@ -611,7 +756,7 @@ Number of RAW sockets currently in use.
 
 .B ip-frag
 .RS
-Number of IP fragments currently in use.
+Number of IP fragments currently in queue.
 .RE
 
 .B tcp-tw
@@ -1537,6 +1682,11 @@ System load average for the past 5 minutes.
 .RS
 System load average for the past 15 minutes.
 .RE
+
+.B blocked
+.RS
+Number of tasks currently blocked, waiting for I/O to complete.
+.RE
 .RE
 .IP -r
 Report memory utilization statistics.
@@ -1579,7 +1729,18 @@ RAM/swap is needed to guarantee that there never is out of memory.
 .RS
 Percentage of memory needed for current workload in relation to the total amount of memory (RAM+swap).
 This number may be greater than 100% because the kernel usually overcommits memory.
+.RE
 
+.B kbactive
+.RS
+Amount of active memory in kilobytes (memory that has been used more recently
+and usually not reclaimed unless absolutely necessary).
+.RE
+
+.B kbinact
+.RS
+Amount of inactive memory in kilobytes (memory which has been less recently
+used. It is more eligible to be reclaimed for other purposes).
 .RE
 .RE
 .IP -R
@@ -1821,9 +1982,6 @@ Number of breaks per second for current serial line.
 .RS
 Number of overrun errors per second for current serial line.
 .RE
-
-Note that with recent 2.6 kernels, these statistics can be retrieved only by
-root.
 .RE
 
 .SH ENVIRONMENT
@@ -1879,6 +2037,8 @@ filesystem must be mounted for the
 command to work.
 
 All the statistics are not necessarily available, depending on the kernel version used.
+.B sar
+assumes that you are using at least a 2.6 kernel.
 .SH FILES
 .IR @SA_DIR@/sa dd
 .RS
@@ -1896,7 +2056,6 @@ Sebastien Godard (sysstat <at> orange.fr)
 .BR sa1 (8),
 .BR sa2 (8),
 .BR sadf (1),
-.BR isag (1),
 .BR pidstat (1),
 .BR mpstat (1),
 .BR iostat (1),

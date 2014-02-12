@@ -1,6 +1,6 @@
 /*
  * sar, sadc, sadf, mpstat and iostat common routines.
- * (C) 1999-2009 by Sebastien GODARD (sysstat <at> orange.fr)
+ * (C) 1999-2012 by Sebastien GODARD (sysstat <at> orange.fr)
  *
  ***************************************************************************
  * This program is free software; you can redistribute it and/or modify it *
@@ -54,9 +54,9 @@ unsigned int kb_shift;
  */
 void print_version(void)
 {
-	fprintf(stderr, _("sysstat version %s\n"), VERSION);
-	fprintf(stderr, "(C) Sebastien Godard (sysstat <at> orange.fr)\n");
-	exit(1);
+	printf(_("sysstat version %s\n"), VERSION);
+	printf("(C) Sebastien Godard (sysstat <at> orange.fr)\n");
+	exit(0);
 }
 
 /*
@@ -264,39 +264,34 @@ int get_sysfs_dev_nr(int display_partitions)
 
 /*
  ***************************************************************************
- * Find number of NFS-mounted points that are registered in
- * /proc/self/mountstats.
+ * Read /proc/devices file and get device-mapper major number.
+ * If device-mapper entry is not found in file, use DEFAULT_DEMAP_MAJOR
+ * number.
  *
  * RETURNS:
- * Number of NFS-mounted points.
+ * Device-mapper major number.
  ***************************************************************************
  */
-int get_nfs_mount_nr(void)
+unsigned int get_devmap_major(void)
 {
 	FILE *fp;
-	char line[8192];
-	char type_name[10];
-	unsigned int nfs = 0;
+	char line[128];
+	unsigned int dm_major = DEFAULT_DEVMAP_MAJOR;
 
-	if ((fp = fopen(NFSMOUNTSTATS, "r")) == NULL)
-		/* File non-existent */
-		return 0;
+	if ((fp = fopen(DEVICES, "r")) == NULL)
+		return dm_major;
 
-	while (fgets(line, 8192, fp) != NULL) {
+	while (fgets(line, 128, fp) != NULL) {
 
-		if ((strstr(line, "mounted")) && (strstr(line, "on")) &&
-		    (strstr(line, "with")) && (strstr(line, "fstype"))) {
-	
-			sscanf(strstr(line, "fstype") + 6, "%10s", type_name);
-			if ((!strncmp(type_name, "nfs", 3)) && (strncmp(type_name, "nfsd", 4))) {
-				nfs ++;
-			}
+		if (strstr(line, "device-mapper")) {
+			/* Read device-mapper major number */
+			sscanf(line, "%u", &dm_major);
 		}
 	}
 
 	fclose(fp);
 
-	return nfs;
+	return dm_major;
 }
 
 /*
@@ -322,7 +317,10 @@ int print_gal_header(struct tm *rectime, char *sysname, char *release,
 	char *e;
 	int rc = 0;
 
-	if (((e = getenv(ENV_TIME_FMT)) != NULL) && !strcmp(e, K_ISO)) {
+	if (rectime == NULL) {
+		strcpy(cur_date, "?/?/?");
+	}
+	else if (((e = getenv(ENV_TIME_FMT)) != NULL) && !strcmp(e, K_ISO)) {
 		strftime(cur_date, sizeof(cur_date), "%Y-%m-%d", rectime);
 		rc = 1;
 	}
@@ -381,10 +379,10 @@ int get_win_height(void)
 
 /*
  ***************************************************************************
- * Remove /dev from path name.
+ * Canonicalize and remove /dev from path name.
  *
  * IN:
- * @name	Device name (may begins with "/dev/")
+ * @name	Device name (may begin with "/dev/" or can be a symlink).
  *
  * RETURNS:
  * Device basename.
@@ -392,10 +390,27 @@ int get_win_height(void)
  */
 char *device_name(char *name)
 {
-	if (!strncmp(name, "/dev/", 5))
-		return name + 5;
+	static char out[MAX_FILE_LEN];
+	char *resolved_name;
+	int i = 0;
 
-	return name;
+	/* realpath() creates new string, so we need to free it later */
+	resolved_name = realpath(name, NULL);
+
+	/* If path doesn't exist, just return input */
+	if (!resolved_name) {
+		return name;
+	}
+
+	if (!strncmp(resolved_name, "/dev/", 5)) {
+		i = 5;
+	}
+	strncpy(out, resolved_name + i, MAX_FILE_LEN);
+	out[MAX_FILE_LEN - 1] = '\0';
+
+	free(resolved_name);
+		
+	return out;
 }
 
 /*
@@ -405,13 +420,16 @@ char *device_name(char *name)
  * ioconf.c which should be used only with kernels that don't have sysfs.
  *
  * IN:
- * @name	Device or partition name.
+ * @name		Device or partition name.
+ * @allow_virtual	TRUE if virtual devices are also accepted.
+ *			The device is assumed to be virtual if no
+ *			/sys/block/<device>/device link exists.
  *
  * RETURNS:
- * TRUE if @name is a (whole) device.
+ * TRUE if @name is not a partition.
  ***************************************************************************
  */
-int is_device(char *name)
+int is_device(char *name, int allow_virtual)
 {
 	char syspath[PATH_MAX];
 	char *slash;
@@ -420,7 +438,8 @@ int is_device(char *name)
 	while ((slash = strchr(name, '/'))) {
 		*slash = '!';
 	}
-	snprintf(syspath, sizeof(syspath), "/sys/block/%s", name);
+	snprintf(syspath, sizeof(syspath), "%s/%s%s", SYSFS_BLOCK, name,
+		 allow_virtual ? "" : "/device");
 	
 	return !(access(syspath, F_OK));
 }
@@ -546,6 +565,18 @@ unsigned long long get_interval(unsigned long long prev_uptime,
 unsigned long long get_per_cpu_interval(struct stats_cpu *scc,
 					struct stats_cpu *scp)
 {
+	unsigned long long ishift = 0LL;
+	
+	if ((scc->cpu_user - scc->cpu_guest) < (scp->cpu_user - scp->cpu_guest)) {
+		/*
+		* Sometimes the nr of jiffies spent in guest mode given by the guest
+		* counter in /proc/stat is slightly higher than that included in
+		* the user counter. Update the interval value accordingly.
+		*/
+		ishift = (scp->cpu_user - scp->cpu_guest) -
+		         (scc->cpu_user - scc->cpu_guest);
+	}
+	
 	/* Don't take cpu_guest into account because cpu_user already includes it */
 	return ((scc->cpu_user    + scc->cpu_nice   +
 		 scc->cpu_sys     + scc->cpu_iowait +
@@ -554,7 +585,8 @@ unsigned long long get_per_cpu_interval(struct stats_cpu *scc,
 		(scp->cpu_user    + scp->cpu_nice   +
 		 scp->cpu_sys     + scp->cpu_iowait +
 		 scp->cpu_idle    + scp->cpu_steal  +
-		 scp->cpu_hardirq + scp->cpu_softirq));
+		 scp->cpu_hardirq + scp->cpu_softirq) +
+		 ishift);
 }
 
 /*
@@ -566,12 +598,14 @@ unsigned long long get_per_cpu_interval(struct stats_cpu *scc,
  * @error_code	Error code.
  ***************************************************************************
  */
+#ifdef DEBUG
 void sysstat_panic(const char *function, int error_code)
 {
 	fprintf(stderr, "sysstat: %s[%d]: Last chance handler...\n",
 		function, error_code);
 	exit(1);
 }
+#endif
 
 /*
  ***************************************************************************

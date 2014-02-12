@@ -1,10 +1,13 @@
 /*
  * sysstat: System performance tools for Linux
- * (C) 1999-2009 by Sebastien Godard (sysstat <at> orange.fr)
+ * (C) 1999-2011 by Sebastien Godard (sysstat <at> orange.fr)
  */
 
 #ifndef _COMMON_H
 #define _COMMON_H
+
+/* Maximum length of sensors device name */
+#define MAX_SENSORS_DEV_LEN	20
 
 #include <time.h>
 #include <sched.h>	/* For __CPU_SETSIZE */
@@ -41,30 +44,40 @@
 #define K_UTC	"UTC"
 
 /* Files */
-#define STAT		"/proc/stat"
-#define UPTIME		"/proc/uptime"
-#define PPARTITIONS	"/proc/partitions"
-#define DISKSTATS	"/proc/diskstats"
-#define INTERRUPTS	"/proc/interrupts"
-#define MEMINFO		"/proc/meminfo"
-#define SYSFS_BLOCK	"/sys/block"
-#define SYSFS_DEVCPU	"/sys/devices/system/cpu"
-#define NFSMOUNTSTATS	"/proc/self/mountstats"
-#define S_STAT		"stat"
-#define DEVMAP_DIR	"/dev/mapper"
+#define STAT			"/proc/stat"
+#define UPTIME			"/proc/uptime"
+#define PPARTITIONS		"/proc/partitions"
+#define DISKSTATS		"/proc/diskstats"
+#define INTERRUPTS		"/proc/interrupts"
+#define MEMINFO			"/proc/meminfo"
+#define SYSFS_BLOCK		"/sys/block"
+#define SYSFS_DEVCPU		"/sys/devices/system/cpu"
+#define SYSFS_TIME_IN_STATE	"cpufreq/stats/time_in_state"
+#define S_STAT			"stat"
+#define DEVMAP_DIR		"/dev/mapper"
+#define DEVICES			"/proc/devices"
+#define SYSFS_USBDEV		"/sys/bus/usb/devices"
+#define SYSFS_IDVENDOR		"idVendor"
+#define SYSFS_IDPRODUCT		"idProduct"
+#define SYSFS_BMAXPOWER		"bMaxPower"
+#define SYSFS_MANUFACTURER	"manufacturer"
+#define SYSFS_PRODUCT		"product"
 
-#define MAX_FILE_LEN	256
-#define MAX_PF_NAME	1024
-#define DEVMAP_MAJOR	253
-#define MAX_NAME_LEN	72
+#define MAX_FILE_LEN		256
+#define MAX_PF_NAME		1024
+#define DEFAULT_DEVMAP_MAJOR	253
+#define MAX_NAME_LEN		72
 
-#define NR_DISKS	4
+#define NR_DISKS		4
+
+#define IGNORE_VIRTUAL_DEVICES	FALSE
+#define ACCEPT_VIRTUAL_DEVICES	TRUE
 
 /* Environment variables */
-#define ENV_TIME_FMT	"S_TIME_FORMAT"
-#define ENV_TIME_DEFTM	"S_TIME_DEF_TIME"
+#define ENV_TIME_FMT		"S_TIME_FORMAT"
+#define ENV_TIME_DEFTM		"S_TIME_DEF_TIME"
 
-#define DIGITS		"0123456789"
+#define DIGITS			"0123456789"
 
 
 /*
@@ -111,8 +124,11 @@
 
 #define MINIMUM(a,b)	((a) < (b) ? (a) : (b))
 
+#ifdef DEBUG
 #define PANIC(m)	sysstat_panic(__FUNCTION__, m)
-
+#else
+#define PANIC(m)
+#endif
 
 /* Number of ticks per second */
 #define HZ		hz
@@ -160,6 +176,8 @@ extern char *
 	device_name(char *);
 extern void
 	get_HZ(void);
+extern unsigned int
+	get_devmap_major(void);
 extern unsigned long long
 	get_interval(unsigned long long, unsigned long long);
 extern void
@@ -168,8 +186,6 @@ extern time_t
 	get_localtime(struct tm *);
 extern time_t
 	get_time(struct tm *);
-extern int
-	get_nfs_mount_nr(void);
 unsigned long long
 	get_per_cpu_interval(struct stats_cpu *, struct stats_cpu *);
 extern int
@@ -179,7 +195,7 @@ extern int
 extern void
 	init_nls(void);
 extern int
-	is_device(char *);
+	is_device(char *, int);
 extern double
 	ll_s_value(unsigned long long, unsigned long long, unsigned long long);
 extern double
@@ -188,7 +204,9 @@ extern int
 	print_gal_header(struct tm *, char *, char *, char *, char *, int);
 extern void
 	print_version(void);
+#ifdef DEBUG
 extern void
 	sysstat_panic(const char *, int);
+#endif
 
 #endif  /* _COMMON_H */
