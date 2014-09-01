@@ -1,5 +1,5 @@
 # Makefile to build sysstat commands
-# # (C) 1999-2012 Sebastien GODARD (sysstat <at> orange.fr)
+# (C) 1999-2014 Sebastien GODARD (sysstat <at> orange.fr)
 
 # Version and package name
 VERSION = @PACKAGE_VERSION@
@@ -121,6 +121,13 @@ endif
 ifndef INSTALL_DOC
 INSTALL_DOC = @INSTALL_DOC@
 endif
+ifndef COPY_ONLY
+COPY_ONLY = @COPY_ONLY@
+endif
+
+# Systemd
+SYSTEMCTL = @SYSTEMCTL@
+SYSTEMD_UNIT_DIR = @SYSTEMD_UNIT_DIR@
 
 # Run-command directories
 ifndef RC_DIR
@@ -156,7 +163,7 @@ NLSPOT= $(NLSPO:.po=.pot)
 % : %.o
 	$(CC) -o $@ $(CFLAGS) $^ $(LFLAGS)
 
-all: sadc sar sadf iostat mpstat pidstat nfsiostat cifsiostat locales
+all: sadc sar sadf iostat mpstat pidstat nfsiostat-sysstat cifsiostat locales
 
 common.o: common.c version.h common.h ioconf.h sysconfig.h
 
@@ -174,6 +181,16 @@ act_sadf.o: activity.c sa.h rndr_stats.h xml_stats.h json_stats.h
 	$(CC) -o $@ -c $(CFLAGS) -DSOURCE_SADF $(DFLAGS) $<
 
 rd_stats.o: rd_stats.c common.h rd_stats.h ioconf.h sysconfig.h
+	$(CC) -o $@ -c $(CFLAGS) -DSOURCE_SADC $(DFLAGS) $<
+
+rd_stats_light.o: rd_stats.c common.h rd_stats.h ioconf.h sysconfig.h
+	$(CC) -o $@ -c $(CFLAGS) $(DFLAGS) $<
+
+count.o: count.c common.h rd_stats.h
+	$(CC) -o $@ -c $(CFLAGS) -DSOURCE_SADC $(DFLAGS) $<
+
+count_light.o: count.c common.h rd_stats.h
+	$(CC) -o $@ -c $(CFLAGS) $(DFLAGS) $<
 
 rd_sensors.o: rd_sensors.c common.h rd_sensors.h sysconfig.h
 
@@ -185,7 +202,7 @@ xml_stats.o: xml_stats.c sa.h sadf.h ioconf.h sysconfig.h xml_stats.h
 
 json_stats.o: json_stats.c sa.h sadf.h ioconf.h sysconfig.h json_stats.h
 
-sa_wrap.o: sa_wrap.c sa.h rd_stats.h rd_sensors.h
+sa_wrap.o: sa_wrap.c sa.h rd_stats.h count.h rd_sensors.h prealloc.h
 
 format.o: format.c sadf.h
 
@@ -196,7 +213,12 @@ sadf_misc.o: sadf_misc.c sadf.h sa.h
 libsyscom.a: common.o ioconf.o
 	$(AR) rvs $@ $?
 
-librdstats.a: librdstats.a(rd_stats.o)
+# Ditto
+librdstats.a: rd_stats.o count.o
+	$(AR) rvs $@ $?
+
+librdstats_light.a: rd_stats_light.o count_light.o
+	$(AR) rvs $@ $?
 
 librdsensors.a: librdsensors.a(rd_sensors.o)
 
@@ -213,25 +235,25 @@ sadf.o: sadf.c sadf.h version.h sa.h common.h ioconf.h sysconfig.h
 
 sadf: sadf.o act_sadf.o format.o sadf_misc.o rndr_stats.o xml_stats.o json_stats.o sa_common.o libsyscom.a
 
-iostat.o: iostat.c iostat.h version.h common.h ioconf.h sysconfig.h rd_stats.h
+iostat.o: iostat.c iostat.h version.h common.h ioconf.h sysconfig.h rd_stats.h count.h
 
-iostat: iostat.o librdstats.a libsyscom.a
+iostat: iostat.o librdstats_light.a libsyscom.a
 
-pidstat.o: pidstat.c pidstat.h version.h common.h rd_stats.h
+pidstat.o: pidstat.c pidstat.h version.h common.h rd_stats.h count.h
 
-pidstat: pidstat.o librdstats.a libsyscom.a
+pidstat: pidstat.o librdstats_light.a libsyscom.a
 
-mpstat.o: mpstat.c mpstat.h version.h common.h rd_stats.h
+mpstat.o: mpstat.c mpstat.h version.h common.h rd_stats.h count.h
 
-mpstat: mpstat.o librdstats.a libsyscom.a
+mpstat: mpstat.o librdstats_light.a libsyscom.a
 
-nfsiostat.o: nfsiostat.c nfsiostat.h version.h common.h
+nfsiostat-sysstat.o: nfsiostat-sysstat.c nfsiostat-sysstat.h count.h version.h common.h
 
-nfsiostat: nfsiostat.o librdstats.a libsyscom.a
+nfsiostat-sysstat: nfsiostat-sysstat.o librdstats_light.a libsyscom.a
 
-cifsiostat.o: cifsiostat.c cifsiostat.h version.h common.h
+cifsiostat.o: cifsiostat.c cifsiostat.h count.h version.h common.h
 
-cifsiostat: cifsiostat.o librdstats.a libsyscom.a
+cifsiostat: cifsiostat.o librdstats_light.a libsyscom.a
 
 ifdef REQUIRE_NLS
 locales: $(NLSGMO)
@@ -244,7 +266,7 @@ nls/sysstat.pot: $(wildcard *.c)
 
 # Phony targets
 .PHONY: clean distclean install install_base install_all uninstall \
-	uninstall_base uninstall_all dist bdist gitdist
+	uninstall_base uninstall_all dist bdist xdist gitdist
 
 install_man: man/sadc.8 man/sar.1 man/sadf.1 man/sa1.8 man/sa2.8 man/sysstat.5
 ifeq ($(INSTALL_DOC),y)
@@ -269,8 +291,8 @@ ifeq ($(INSTALL_DOC),y)
 	$(INSTALL_DATA) $(MANGRPARG) man/mpstat.1 $(DESTDIR)$(MAN1_DIR)
 	rm -f $(DESTDIR)$(MAN1_DIR)/pidstat.1*
 	$(INSTALL_DATA) $(MANGRPARG) man/pidstat.1 $(DESTDIR)$(MAN1_DIR)
-	rm -f $(DESTDIR)$(MAN1_DIR)/nfsiostat.1*
-	$(INSTALL_DATA) $(MANGRPARG) man/nfsiostat.1 $(DESTDIR)$(MAN1_DIR)
+	rm -f $(DESTDIR)$(MAN1_DIR)/nfsiostat-sysstat.1*
+	$(INSTALL_DATA) $(MANGRPARG) man/nfsiostat-sysstat.1 $(DESTDIR)$(MAN1_DIR)
 	rm -f $(DESTDIR)$(MAN1_DIR)/cifsiostat.1*
 	$(INSTALL_DATA) $(MANGRPARG) man/cifsiostat.1 $(DESTDIR)$(MAN1_DIR)
 ifeq ($(INSTALL_ISAG),y)
@@ -286,7 +308,7 @@ ifeq ($(COMPRESS_MANPG),y)
 	$(ZIP) $(DESTDIR)$(MAN1_DIR)/iostat.1
 	$(ZIP) $(DESTDIR)$(MAN1_DIR)/mpstat.1
 	$(ZIP) $(DESTDIR)$(MAN1_DIR)/pidstat.1
-	$(ZIP) $(DESTDIR)$(MAN1_DIR)/nfsiostat.1
+	$(ZIP) $(DESTDIR)$(MAN1_DIR)/nfsiostat-sysstat.1
 	$(ZIP) $(DESTDIR)$(MAN1_DIR)/cifsiostat.1
 ifeq ($(INSTALL_ISAG),y)
 	$(ZIP) $(DESTDIR)$(MAN1_DIR)/isag.1
@@ -326,7 +348,7 @@ endif
 	$(INSTALL_BIN) iostat $(DESTDIR)$(BIN_DIR)
 	$(INSTALL_BIN) mpstat $(DESTDIR)$(BIN_DIR)
 	$(INSTALL_BIN) pidstat $(DESTDIR)$(BIN_DIR)
-	$(INSTALL_BIN) nfsiostat $(DESTDIR)$(BIN_DIR)
+	$(INSTALL_BIN) nfsiostat-sysstat $(DESTDIR)$(BIN_DIR)
 	$(INSTALL_BIN) cifsiostat $(DESTDIR)$(BIN_DIR)
 ifeq ($(INSTALL_ISAG),y)
 	$(INSTALL_BIN) contrib/isag/isag $(DESTDIR)$(BIN_DIR)
@@ -356,7 +378,13 @@ install_all: install_base cron/crontab sysstat \
 	   echo "USER'S PREVIOUS CRONTAB SAVED IN CURRENT DIRECTORY (USING .save SUFFIX)."; \
 	   su $(CRON_OWNER) -c "crontab cron/crontab"; \
 	fi
-	if [ -d $(DESTDIR)$(INIT_DIR) ]; then \
+	if [ -d "$(DESTDIR)$(SYSTEMD_UNIT_DIR)" ]; then \
+	    $(INSTALL_DATA) sysstat.service $(DESTDIR)$(SYSTEMD_UNIT_DIR); \
+	    $(INSTALL_DATA) cron/sysstat-collect.service $(DESTDIR)$(SYSTEMD_UNIT_DIR); \
+	    $(INSTALL_DATA) cron/sysstat-collect.timer $(DESTDIR)$(SYSTEMD_UNIT_DIR); \
+	    $(INSTALL_DATA) cron/sysstat-summary.service $(DESTDIR)$(SYSTEMD_UNIT_DIR); \
+	    $(INSTALL_DATA) cron/sysstat-summary.timer $(DESTDIR)$(SYSTEMD_UNIT_DIR); \
+	elif [ -d $(DESTDIR)$(INIT_DIR) ]; then \
 	   $(INSTALL_BIN) sysstat $(DESTDIR)$(INIT_DIR)/sysstat; \
 	   if [ -x $(CHKCONFIG) ]; then \
 	      cd $(DESTDIR)$(INIT_DIR) && $(CHKCONFIG) --add sysstat; \
@@ -378,6 +406,11 @@ install_all: install_base cron/crontab sysstat \
 	      cd $(DESTDIR)$(RC5_DIR) && $(LN_S) -f ../rc.sysstat S01sysstat; \
 	   fi \
 	fi
+ifeq ($(COPY_ONLY),n)
+	if [ -x $(SYSTEMCTL) ]; then \
+	    $(SYSTEMCTL) enable sysstat.service; \
+	fi
+endif
 
 uninstall_man:
 ifeq ($(INSTALL_DOC),y)
@@ -390,7 +423,7 @@ ifeq ($(INSTALL_DOC),y)
 	rm -f $(DESTDIR)$(MAN1_DIR)/iostat.1*
 	rm -f $(DESTDIR)$(MAN1_DIR)/mpstat.1*
 	rm -f $(DESTDIR)$(MAN1_DIR)/pidstat.1*
-	rm -f $(DESTDIR)$(MAN1_DIR)/nfsiostat.1*
+	rm -f $(DESTDIR)$(MAN1_DIR)/nfsiostat-sysstat.1*
 	rm -f $(DESTDIR)$(MAN1_DIR)/cifsiostat.1*
 ifeq ($(INSTALL_ISAG),y)
 	rm -f $(DESTDIR)$(MAN1_DIR)/isag.1
@@ -418,7 +451,7 @@ uninstall_base: uninstall_man uninstall_nls
 	rm -f $(DESTDIR)$(BIN_DIR)/iostat
 	rm -f $(DESTDIR)$(BIN_DIR)/mpstat
 	rm -f $(DESTDIR)$(BIN_DIR)/pidstat
-	rm -f $(DESTDIR)$(BIN_DIR)/nfsiostat
+	rm -f $(DESTDIR)$(BIN_DIR)/nfsiostat-sysstat
 	rm -f $(DESTDIR)$(BIN_DIR)/cifsiostat
 ifeq ($(INSTALL_ISAG),y)
 	rm -f $(DESTDIR)$(BIN_DIR)/isag
@@ -456,6 +489,18 @@ uninstall_all: uninstall_base
 	-$(CP) -a /tmp/crontab-$(CRON_OWNER).old ./crontab-$(CRON_OWNER).`date '+%Y%m%d.%H%M%S'`.old
 	@echo "USER CRONTAB SAVED IN CURRENT DIRECTORY (WITH .old SUFFIX)."
 	-su $(CRON_OWNER) -c "crontab -r"
+ifeq ($(COPY_ONLY),n)
+	if [ -x $(SYSTEMCTL) ]; then \
+	    $(SYSTEMCTL) disable sysstat.service; \
+	fi
+endif
+	if [ -d "$(DESTDIR)$(SYSTEMD_UNIT_DIR)" ]; then \
+	    rm -f $(DESTDIR)$(SYSTEMD_UNIT_DIR)/sysstat.service; \
+	    rm -f $(DESTDIR)$(SYSTEMD_UNIT_DIR)/sysstat-collect.service; \
+	    rm -f $(DESTDIR)$(SYSTEMD_UNIT_DIR)/sysstat-collect.timer; \
+	    rm -f $(DESTDIR)$(SYSTEMD_UNIT_DIR)/sysstat-summary.service; \
+	    rm -f $(DESTDIR)$(SYSTEMD_UNIT_DIR)/sysstat-summary.timer; \
+	fi
 
 ifeq ($(INSTALL_CRON),y)
 uninstall: uninstall_all
@@ -476,16 +521,17 @@ po-files:
 endif
 
 clean:
-	rm -f sadc sar sadf iostat mpstat pidstat nfsiostat cifsiostat *.o *.a core TAGS
+	rm -f sadc sar sadf iostat mpstat pidstat nfsiostat-sysstat cifsiostat *.o *.a core TAGS
 	find nls -name "*.gmo" -exec rm -f {} \;
 
 almost-distclean: clean nls/sysstat.pot
-	rm -f sa1 sa2 sysstat cron/crontab version.h sysconfig.h
-	rm -f sysstat.sysconfig cron/sysstat.crond cron/sysstat.cron.daily
+	rm -f sa1 sa2 sysstat cron/crontab version.h sysconfig.h prealloc.h
+	rm -f sysstat.sysconfig cron/sysstat.crond cron/sysstat.cron.daily sysstat.service
+	rm -f cron/sysstat-collect.service cron/sysstat-collect.timer cron/sysstat-summary.service cron/sysstat-summary.timer
 	rm -f cron/sysstat.cron.hourly cron/sysstat.crond.sample cron/sysstat.crond.sample.in
 	rm -f contrib/isag/isag
 	rm -f man/sa1.8 man/sa2.8 man/sadc.8 man/sadf.1 man/sar.1 man/iostat.1 man/sysstat.5
-	rm -f man/cifsiostat.1 man/nfsiostat.1
+	rm -f man/cifsiostat.1 man/nfsiostat-sysstat.1
 	rm -f *.log config.status
 	rm -rf autom4te.cache
 	rm -f *.save *.old .*.swp data
@@ -502,6 +548,9 @@ dist: almost-distclean
 
 bdist: almost-distclean
 	cd .. && (tar --exclude=Makefile --exclude=.git -cvf - sysstat-$(VERSION) | bzip2 > sysstat-$(VERSION).tar.bz2)
+
+xdist: almost-distclean
+	cd .. && (tar --exclude=Makefile --exclude=.git -cvf - sysstat-$(VERSION) | xz > sysstat-$(VERSION).tar.xz)
 
 gitdist: almost-distclean
 	cd .. && (tar --exclude=Makefile -cvf - sysstat-$(VERSION) | bzip2 > sysstat-$(VERSION)-git.tar.bz2)

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--DTD v2.13 for sysstat. See sadf.h -->
+<!--DTD v2.19 for sysstat. See sadf.h -->
 
 <!ELEMENT sysstat (sysdata-version, host)>
 
 <!ELEMENT sysdata-version (#PCDATA)>
 
-<!ENTITY % TIMESTAMP_ELEMENTS "cpu-load|cpu-load-all|process-and-context-switch|interrupts|swap-pages|paging|io|memory|hugepages|kernel|queue|serial|disk|network|power-management">
+<!ENTITY % TIMESTAMP_ELEMENTS "cpu-load|cpu-load-all|process-and-context-switch|interrupts|swap-pages|paging|io|memory|hugepages|kernel|queue|serial|disk|network|power-management|filesystems">
 <!ENTITY % HOST_ELEMENTS "sysname|release|machine|number-of-cpus|file-date|statistics|restarts|comments">
 
 <!ELEMENT host (%HOST_ELEMENTS;)+>
@@ -23,6 +23,8 @@
 
 <!ELEMENT file-date (#PCDATA)>
 
+<!ELEMENT file-utc-time (#PCDATA)>
+
 <!ELEMENT statistics (timestamp+)>
 
 <!ELEMENT timestamp (%TIMESTAMP_ELEMENTS;)+>
@@ -33,13 +35,14 @@
 	interval CDATA #REQUIRED
 >
 
-<!ELEMENT restarts (boot+)>
+<!ELEMENT restarts (boot*)>
 
 <!ELEMENT boot EMPTY>
 <!ATTLIST boot
 	date CDATA #REQUIRED
 	time CDATA #REQUIRED
 	utc CDATA #REQUIRED
+	cpu_count CDATA #REQUIRED
 >
 
 <!ELEMENT comments (comment+)>
@@ -78,6 +81,7 @@
 	irq CDATA #REQUIRED
 	soft CDATA #REQUIRED
 	guest CDATA #REQUIRED
+	gnice CDATA #REQUIRED
 	idle CDATA #REQUIRED
 >
 
@@ -141,7 +145,7 @@
 	bwrtn CDATA #REQUIRED
 >
 
-<!ELEMENT memory (memfree, memused, memused-percent, buffers, cached, commit, commit-percent, active, inactive, swpfree, swpused, swpused-percent, swpcad, swpcad-percent, frmpg, bufpg, campg)>
+<!ELEMENT memory (memfree, memused, memused-percent, buffers, cached, commit, commit-percent, active, inactive, dirty, swpfree, swpused, swpused-percent, swpcad, swpcad-percent, frmpg, bufpg, campg)>
 <!ATTLIST memory
 	per CDATA #REQUIRED
 	unit CDATA #REQUIRED
@@ -164,6 +168,8 @@
 <!ELEMENT active (#PCDATA)>
 
 <!ELEMENT inactive (#PCDATA)>
+
+<!ELEMENT dirty (#PCDATA)>
 
 <!ELEMENT swpfree (#PCDATA)>
 
@@ -259,6 +265,7 @@
 	rxcmp CDATA #REQUIRED
 	txcmp CDATA #REQUIRED
 	rxmcst CDATA #REQUIRED
+	ifutil-percent CDATA #REQUIRED
 >
 
 <!ELEMENT net-edev EMPTY>
@@ -547,4 +554,18 @@
 	maxpower CDATA #REQUIRED
 	manufact CDATA #REQUIRED
 	product CDATA #REQUIRED
+>
+
+<!ELEMENT filesystems (filesystem+)>
+
+<!ELEMENT filesystem EMPTY>
+<!ATTLIST filesystem
+	fsname CDATA #REQUIRED
+	MBfsfree CDATA #REQUIRED
+	MBfsused CDATA #REQUIRED
+	fsused-percent CDATA #REQUIRED
+	ufsused-percent CDATA #REQUIRED
+	Ifree CDATA #REQUIRED
+	Iused CDATA #REQUIRED
+	Iused-percent CDATA #REQUIRED
 >

@@ -1,6 +1,6 @@
 /*
  * json_stats.c: Funtions used by sadf to display statistics in JSON format.
- * (C) 1999-2011 by Sebastien GODARD (sysstat <at> orange.fr)
+ * (C) 1999-2014 by Sebastien GODARD (sysstat <at> orange.fr)
  *
  ***************************************************************************
  * This program is free software; you can redistribute it and/or modify it *
@@ -147,7 +147,8 @@ __print_funct_t json_print_cpu_stats(struct activity *a, int curr, int tab,
 				/*
 				 * If the CPU is offline then it is omited from /proc/stat:
 				 * All the fields couldn't have been read and the sum of them is zero.
-				 * (Remember that guest time is already included in user mode.)
+				 * (Remember that guest/guest_nice times are already included in
+				 * user/nice modes.)
 				 */
 				if ((scc->cpu_user    + scc->cpu_nice + scc->cpu_sys   +
 				     scc->cpu_iowait  + scc->cpu_idle + scc->cpu_steal +
@@ -194,9 +195,10 @@ __print_funct_t json_print_cpu_stats(struct activity *a, int curr, int tab,
 							 "\"irq\": %.2f, "
 							 "\"soft\": %.2f, "
 							 "\"guest\": %.2f, "
+							 "\"gnice\": %.2f, "
 							 "\"idle\": %.2f}",
 							 i - 1, 0.0, 0.0, 0.0, 0.0,
-							 0.0, 0.0, 0.0, 0.0,
+							 0.0, 0.0, 0.0, 0.0, 0.0,
 							 cpu_offline ? 0.0 : 100.0);
 					}
 					continue;
@@ -212,16 +214,16 @@ __print_funct_t json_print_cpu_stats(struct activity *a, int curr, int tab,
 					 "\"steal\": %.2f, "
 					 "\"idle\": %.2f}",
 					 cpuno,
-					 ll_sp_value(scp->cpu_user,   scc->cpu_user,   g_itv),
-					 ll_sp_value(scp->cpu_nice,   scc->cpu_nice,   g_itv),
+					 ll_sp_value(scp->cpu_user, scc->cpu_user, g_itv),
+					 ll_sp_value(scp->cpu_nice, scc->cpu_nice, g_itv),
 					 ll_sp_value(scp->cpu_sys + scp->cpu_hardirq + scp->cpu_softirq,
 						     scc->cpu_sys + scc->cpu_hardirq + scc->cpu_softirq,
 						     g_itv),
 					 ll_sp_value(scp->cpu_iowait, scc->cpu_iowait, g_itv),
-					 ll_sp_value(scp->cpu_steal,  scc->cpu_steal,  g_itv),
+					 ll_sp_value(scp->cpu_steal, scc->cpu_steal, g_itv),
 					 scc->cpu_idle < scp->cpu_idle ?
 					 0.0 :
-					 ll_sp_value(scp->cpu_idle,   scc->cpu_idle,   g_itv));
+					 ll_sp_value(scp->cpu_idle, scc->cpu_idle, g_itv));
 			}
 			else if (DISPLAY_CPU_ALL(a->opt_flags)) {
 				xprintf0(tab, "{\"cpu\": \"%s\", "
@@ -233,22 +235,27 @@ __print_funct_t json_print_cpu_stats(struct activity *a, int curr, int tab,
 					 "\"irq\": %.2f, "
 					 "\"soft\": %.2f, "
 					 "\"guest\": %.2f, "
+					 "\"gnice\": %.2f, "
 					 "\"idle\": %.2f}",
 					 cpuno,
 					 (scc->cpu_user - scc->cpu_guest) < (scp->cpu_user - scp->cpu_guest) ?
 					 0.0 :
 					 ll_sp_value(scp->cpu_user - scp->cpu_guest,
-						     scc->cpu_user - scc->cpu_guest,     g_itv),
-					 ll_sp_value(scp->cpu_nice,    scc->cpu_nice,    g_itv),
-					 ll_sp_value(scp->cpu_sys,     scc->cpu_sys,     g_itv),
-					 ll_sp_value(scp->cpu_iowait,  scc->cpu_iowait,  g_itv),
-					 ll_sp_value(scp->cpu_steal,   scc->cpu_steal,   g_itv),
+						     scc->cpu_user - scc->cpu_guest, g_itv),
+					 (scc->cpu_nice - scc->cpu_guest_nice) < (scp->cpu_nice - scp->cpu_guest_nice) ?
+					 0.0 :
+					 ll_sp_value(scp->cpu_nice - scp->cpu_guest_nice,
+						     scc->cpu_nice - scc->cpu_guest_nice, g_itv),
+					 ll_sp_value(scp->cpu_sys, scc->cpu_sys, g_itv),
+					 ll_sp_value(scp->cpu_iowait, scc->cpu_iowait, g_itv),
+					 ll_sp_value(scp->cpu_steal, scc->cpu_steal, g_itv),
 					 ll_sp_value(scp->cpu_hardirq, scc->cpu_hardirq, g_itv),
 					 ll_sp_value(scp->cpu_softirq, scc->cpu_softirq, g_itv),
-					 ll_sp_value(scp->cpu_guest,   scc->cpu_guest,   g_itv),
+					 ll_sp_value(scp->cpu_guest, scc->cpu_guest, g_itv),
+					 ll_sp_value(scp->cpu_guest_nice, scc->cpu_guest_nice, g_itv),
 					 scc->cpu_idle < scp->cpu_idle ?
 					 0.0 :
-					 ll_sp_value(scp->cpu_idle,   scc->cpu_idle,   g_itv));
+					 ll_sp_value(scp->cpu_idle, scc->cpu_idle, g_itv));
 			}
 		}
 	}
@@ -472,7 +479,8 @@ __print_funct_t json_print_memory_stats(struct activity *a, int curr, int tab,
 		       "\"commit\": %lu, "
 		       "\"commit-percent\": %.2f, "
 		       "\"active\": %lu, "
-		       "\"inactive\": %lu",
+		       "\"inactive\": %lu, "
+		       "\"dirty\": %lu",
 		       smc->frmkb,
 		       smc->tlmkb - smc->frmkb,
 		       smc->tlmkb ?
@@ -485,7 +493,8 @@ __print_funct_t json_print_memory_stats(struct activity *a, int curr, int tab,
 		       SP_VALUE(0, smc->comkb, smc->tlmkb + smc->tlskb) :
 		       0.0,
 		       smc->activekb,
-		       smc->inactkb);
+		       smc->inactkb,
+		       smc->dirtykb);
 	}
 
 	if (DISPLAY_SWAP(a->opt_flags)) {
@@ -665,7 +674,7 @@ __print_funct_t json_print_disk_stats(struct activity *a, int curr, int tab,
 	struct stats_disk *sdc,	*sdp;
 	struct ext_disk_stats xds;
 	int sep = FALSE;
-	char *dev_name;
+	char *dev_name, *persist_dev_name;
 
 	xprintf(tab++, "\"disk\": [");
 
@@ -683,16 +692,26 @@ __print_funct_t json_print_disk_stats(struct activity *a, int curr, int tab,
 		compute_ext_disk_stats(sdc, sdp, itv, &xds);
 		
 		dev_name = NULL;
+		persist_dev_name = NULL;
 
-		if ((USE_PRETTY_OPTION(flags)) && (sdc->major == dm_major)) {
-			dev_name = transform_devmapname(sdc->major, sdc->minor);
+		if (DISPLAY_PERSIST_NAME_S(flags)) {
+			persist_dev_name = get_persistent_name_from_pretty(get_devname(sdc->major, sdc->minor, TRUE));
 		}
-
-		if (!dev_name) {
-			dev_name = get_devname(sdc->major, sdc->minor,
-					       USE_PRETTY_OPTION(flags));
+		
+		if (persist_dev_name) {
+			dev_name = persist_dev_name;
 		}
+		else {
+			if ((USE_PRETTY_OPTION(flags)) && (sdc->major == dm_major)) {
+				dev_name = transform_devmapname(sdc->major, sdc->minor);
+			}
 
+			if (!dev_name) {
+				dev_name = get_devname(sdc->major, sdc->minor,
+						       USE_PRETTY_OPTION(flags));
+			}
+		}
+		
 		if (sep) {
 			printf(",\n");
 		}
@@ -741,6 +760,7 @@ __print_funct_t json_print_net_dev_stats(struct activity *a, int curr, int tab,
 	int i, j;
 	struct stats_net_dev *sndc, *sndp;
 	int sep = FALSE;
+	double rxkb, txkb, ifutil;
 
 	if (!IS_SELECTED(a->options) || (a->nr <= 0))
 		goto close_json_markup;
@@ -765,6 +785,10 @@ __print_funct_t json_print_net_dev_stats(struct activity *a, int curr, int tab,
 		}
 		sep = TRUE;
 		
+		rxkb = S_VALUE(sndp->rx_bytes, sndc->rx_bytes, itv);
+		txkb = S_VALUE(sndp->tx_bytes, sndc->tx_bytes, itv);
+		ifutil = compute_ifutil(sndc, rxkb, txkb);
+
 		xprintf0(tab, "{\"iface\": \"%s\", "
 			 "\"rxpck\": %.2f, "
 			 "\"txpck\": %.2f, "
@@ -772,15 +796,17 @@ __print_funct_t json_print_net_dev_stats(struct activity *a, int curr, int tab,
 			 "\"txkB\": %.2f, "
 			 "\"rxcmp\": %.2f, "
 			 "\"txcmp\": %.2f, "
-			 "\"rxmcst\": %.2f}",
+			 "\"rxmcst\": %.2f, "
+			 "\"ifutil-percent\": %.2f}",
 			 sndc->interface,
 			 S_VALUE(sndp->rx_packets,    sndc->rx_packets,    itv),
 			 S_VALUE(sndp->tx_packets,    sndc->tx_packets,    itv),
-			 S_VALUE(sndp->rx_bytes,      sndc->rx_bytes,      itv) / 1024,
-			 S_VALUE(sndp->tx_bytes,      sndc->tx_bytes,      itv) / 1024,
+			 rxkb / 1024,
+			 txkb / 1024,
 			 S_VALUE(sndp->rx_compressed, sndc->rx_compressed, itv),
 			 S_VALUE(sndp->tx_compressed, sndc->tx_compressed, itv),
-			 S_VALUE(sndp->multicast,     sndc->multicast,     itv));
+			 S_VALUE(sndp->multicast,     sndc->multicast,     itv),
+			 ifutil);
 	}
 
 	printf("\n");
@@ -2065,4 +2091,61 @@ close_json_markup:
 	if (CLOSE_MARKUP(a->options)) {
 		json_markup_power_management(tab, CLOSE_JSON_MARKUP);
 	}
+}
+
+/*
+ ***************************************************************************
+ * Display filesystems statistics in JSON.
+ *
+ * IN:
+ * @a		Activity structure with statistics.
+ * @curr	Index in array for current sample statistics.
+ * @tab		Indentation in output.
+ * @itv		Interval of time in jiffies.
+ ***************************************************************************
+ */
+__print_funct_t json_print_filesystem_stats(struct activity *a, int curr, int tab,
+					    unsigned long long itv)
+{
+	int i;
+	struct stats_filesystem *sfc;
+	int sep = FALSE;
+
+	xprintf(tab++, "\"filesystems\": [");
+
+	for (i = 0; i < a->nr; i++) {
+		sfc = (struct stats_filesystem *) ((char *) a->buf[curr]  + i * a->msize);
+
+		if (!sfc->f_blocks)
+			/* Size of filesystem is null: We are at the end of the list */
+			break;
+
+		if (sep) {
+			printf(",\n");
+		}
+		sep = TRUE;
+		
+		xprintf0(tab, "{\"filesystem\": \"%s\", "
+			 "\"MBfsfree\": %.0f, "
+			 "\"MBfsused\": %.0f, "
+			 "\"%%fsused\": %.2f, "
+			 "\"%%ufsused\": %.2f, "
+			 "\"Ifree\": %llu, "
+			 "\"Iused\": %llu, "
+			 "\"%%Iused\": %.2f}",
+			 sfc->fs_name,
+			 (double) sfc->f_bfree / 1024 / 1024,
+			 (double) (sfc->f_blocks - sfc->f_bfree) / 1024 / 1024,
+			 sfc->f_blocks ? SP_VALUE(sfc->f_bfree, sfc->f_blocks, sfc->f_blocks)
+				     : 0.0,
+			 sfc->f_blocks ? SP_VALUE(sfc->f_bavail, sfc->f_blocks, sfc->f_blocks)
+				     : 0.0,
+			 sfc->f_ffree,
+			 sfc->f_files - sfc->f_ffree,
+			 sfc->f_files ? SP_VALUE(sfc->f_ffree, sfc->f_files, sfc->f_files)
+				    : 0.0);
+	}
+
+	printf("\n");
+	xprintf0(--tab, "]");
 }

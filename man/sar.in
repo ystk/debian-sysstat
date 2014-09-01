@@ -1,26 +1,29 @@
-.TH SAR 1 "MAY 2011" Linux "Linux User's Manual" -*- nroff -*-
+.TH SAR 1 "JUNE 2013" Linux "Linux User's Manual" -*- nroff -*-
 .SH NAME
 sar \- Collect, report, or save system activity information.
 .SH SYNOPSIS
-.B sar [ -A ] [ -b ] [ -B ] [ -C ] [ -d ] [ -h ] [ -H ] [ -i
-.I interval
-.B ] [ -p ] [ -q ] [ -r ] [ -R ] [ -S ] [ -t ] [ -u [ ALL ] ]
-[ -v ] [ -V ] [ -w ] [ -W ] [ -y ]
+.B sar [ -A ] [ -B ] [ -b ] [ -C ] [ -d ] [ -F ] [ -H ] [ -h ] [ -p ] [ -q ] [ -R ]
+.B [ -r ] [ -S ] [ -t ] [ -u [ ALL ] ] [ -V ] [ -v ] [ -W ] [ -w ] [ -y ]
+.B [ -I {
+.I int
+.B [,...] | SUM | ALL | XALL } ] [ -P {
+.I cpu
+.B [,...] | ALL } ]
 .B [ -m {
 .I keyword
 .B [,...] | ALL } ]
 .B [ -n {
 .I keyword
 .B [,...] | ALL } ]
-.B [ -I {
-.I int
-.B [,...] | SUM | ALL | XALL } ] [ -P {
-.I cpu
-.B [,...] | ALL } ] [ -o [
+.B [ -j { ID | LABEL | PATH | UUID | ... } ]
+.B [ -f [
 .I filename
-.B ] | -f [
+.B ] | -o [
 .I filename
-.B ] ] [ -s [
+.B ] | -[0-9]+ ]
+.B [ -i
+.I interval
+.B ] [ -s [
 .I hh:mm:ss
 .B ] ] [ -e [
 .I hh:mm:ss
@@ -56,7 +59,9 @@ be saved in the file specified by the
 .I filename
 flag, in addition to being displayed onto the screen. If
 .I filename
-is omitted, sar uses the standard system activity daily data file,
+is omitted,
+.B sar
+uses the standard system activity daily data file,
 the
 .IR @SA_DIR@/sa dd
 file, where the dd parameter indicates the current day.
@@ -69,6 +74,11 @@ command extracts and writes to standard output records previously
 saved in a file. This file can be either the one specified by the
 .B -f
 flag or, by default, the standard system activity daily data file.
+It is also possible to enter -1, -2 etc. as an argument to
+.B sar
+to display data
+of that days ago. For example, -1 will point at the standard system
+activity file of yesterday.
 
 Without the
 .B -P
@@ -138,42 +148,7 @@ command only reports on local activities.
 .SH OPTIONS
 .IP -A
 This is equivalent to specifying
-.BR "-bBdHqrRSuvwWy -I SUM -I XALL -m ALL -n ALL -u ALL -P ALL".
-.IP -b
-Report I/O and transfer rate statistics.
-The following values are displayed:
-
-.B tps
-.RS
-.RS
-Total number of transfers per second that were issued to physical devices.
-A transfer is an I/O request to a physical device. Multiple logical
-requests can be combined into a single I/O request to the device.
-A transfer is of indeterminate size.
-.RE
-
-.B rtps
-.RS
-Total number of read requests per second issued to physical devices.
-.RE
-
-.B wtps
-.RS
-Total number of write requests per second issued to physical devices.
-.RE
-
-.B bread/s
-.RS
-Total amount of data read from the devices in blocks per second.
-Blocks are equivalent to sectors
-and therefore have a size of 512 bytes.
-.RE
-
-.B bwrtn/s
-.RS
-Total amount of data written to devices in blocks per second.
-.RE
-.RE
+.BR "-bBdFHqrRSuvwWy -I SUM -I XALL -m ALL -n ALL -u ALL -P ALL".
 .IP -B
 Report paging statistics.
 The following values are displayed:
@@ -233,6 +208,41 @@ This field is displayed as zero if no pages have been scanned during the
 interval of time.
 .RE
 .RE
+.IP -b
+Report I/O and transfer rate statistics.
+The following values are displayed:
+
+.B tps
+.RS
+.RS
+Total number of transfers per second that were issued to physical devices.
+A transfer is an I/O request to a physical device. Multiple logical
+requests can be combined into a single I/O request to the device.
+A transfer is of indeterminate size.
+.RE
+
+.B rtps
+.RS
+Total number of read requests per second issued to physical devices.
+.RE
+
+.B wtps
+.RS
+Total number of write requests per second issued to physical devices.
+.RE
+
+.B bread/s
+.RS
+Total amount of data read from the devices in blocks per second.
+Blocks are equivalent to sectors
+and therefore have a size of 512 bytes.
+.RE
+
+.B bwrtn/s
+.RS
+Total amount of data written to devices in blocks per second.
+.RE
+.RE
 .IP -C
 When reading data from a file, tell
 .B sar
@@ -250,8 +260,14 @@ is the major number of the device and
 .B n
 its minor number.
 Device names may also be pretty-printed if option -p
-is used (see below).
-Note that disk activity depends on sadc options "-S DISK" and "-S XDISK"
+is used or persistent device names can be printed if option -j is used
+(see below).
+Note that disk activity depends on
+.B sadc
+options 
+.B "-S DISK"
+and
+.B "-S XDISK"
 to be collected. The following values are displayed:
 
 .B tps
@@ -312,6 +328,54 @@ or written to a file (options
 or
 .B -o
 ).
+.IP -F
+Display statistics for currently mounted filesystems. Pseudo-filesystems are
+ignored. At the end of the report,
+.B sar
+will display a summary of all those filesystems.
+Note that filesystems statistics depend on
+.B sadc
+option
+.B "-S XDISK"
+to be collected.
+The following values are displayed:
+
+.B MBfsfree
+.RS
+.RS
+Total amount a free space in megabytes (including space available only to privileged user).
+.RE
+
+.B MBfsused
+.RS
+Total amount of space used in megabytes.
+.RE
+
+.B %fsused
+.RS
+Percentage of filesystem space used, as seen by a privileged user.
+.RE
+
+.B %ufsused
+.RS
+Percentage of filesystem space used, as seen by an unprivileged user.
+.RE
+
+.B Ifree
+.RS
+Total number of free file nodes in filesystem.
+.RE
+
+.B Iused
+.RS
+Total number of file nodes used in filesystem.
+.RE
+
+.B %Iused
+.RS
+Percentage of file nodes used in filesystem.
+.RE
+.RE
 .IP "-f [ filename ]"
 Extract records from
 .I filename
@@ -322,8 +386,6 @@ flag). The default value of the
 parameter is the current daily data file, the
 .IR @SA_DIR@/sa dd
 file. The -f option is exclusive of the -o option.
-.IP -h
-Display a short help message then exit.
 .IP -H
 Report hugepages utilization statistics.
 The following values are displayed:
@@ -344,11 +406,8 @@ Amount of hugepages memory in kilobytes that has been allocated.
 Percentage of total hugepages memory that has been allocated.
 .RE
 .RE
-.IP "-i interval"
-Select data records at seconds as close as possible to the number specified
-by the
-.I interval
-parameter.
+.IP -h
+Display a short help message then exit.
 .IP "-I { int [,...] | SUM | ALL | XALL }"
 Report statistics for a given interrupt.
 .B int
@@ -365,10 +424,33 @@ the first 16 interrupts are to be reported, whereas the
 .B XALL
 keyword indicates that statistics from all interrupts, including potential
 APIC interrupt sources, are to be reported.
-Note that interrupt statistics depend on sadc option "-S INT" to be collected.
+Note that interrupt statistics depend on
+.B sadc
+option
+.B "-S INT"
+to be collected.
+.IP "-i interval"
+Select data records at seconds as close as possible to the number specified
+by the
+.I interval
+parameter.
+.IP "-j { ID | LABEL | PATH | UUID | ... }"
+Display persistent device names. Use this option in conjunction with option -d.
+Options
+.BR ID ,
+.BR LABEL ,
+etc. specify the type of the persistent name. These options are not limited,
+only prerequisite is that directory with required persistent names is present in
+.IR /dev/disk .
+If persistent name is not found for the device, the device name
+is pretty-printed (see option -p below).
 .IP "-m { keyword [,...] | ALL }"
 Report power management statistics.
-Note that these statistics depend on sadc option "-S POWER" to be collected.
+Note that these statistics depend on
+.B sadc
+option
+.B "-S POWER"
+to be collected.
 
 Possible keywords are
 .BR CPU ,
@@ -576,6 +658,13 @@ Number of compressed packets transmitted per second.
 Number of multicast packets received per second.
 .RE
 
+.B %ifutil
+.RS
+Utilization percentage of the network interface. For half-duplex interfaces,
+utilization is calculated using the sum of rxkB/s and txkB/s as a percentage
+of the interface speed. For full-duplex, this is the greater of rxkB/S or txkB/s.
+.RE
+
 With the
 .B EDEV
 keyword, statistics on failures (errors) from the network devices are reported.
@@ -767,8 +856,11 @@ Number of TCP sockets in TIME_WAIT state.
 With the
 .B IP
 keyword, statistics about IPv4 network traffic are reported.
-Note that IPv4 statistics depend on sadc option "-S SNMP" to be
-collected.
+Note that IPv4 statistics depend on
+.B sadc
+option
+.B "-S SNMP"
+to be collected.
 The following values are displayed (formal SNMP names between
 square brackets):
 
@@ -825,8 +917,11 @@ generated per second as a result of fragmentation at this entity [ipFragCreates]
 With the
 .B EIP
 keyword, statistics about IPv4 network errors are reported.
-Note that IPv4 statistics depend on sadc option "-S SNMP" to be
-collected.
+Note that IPv4 statistics depend on
+.B sadc
+option
+.B "-S SNMP"
+to be collected.
 The following values are displayed (formal SNMP names between
 square brackets):
 
@@ -906,8 +1001,11 @@ be, e.g., because their Don't Fragment flag was set [ipFragFails].
 With the
 .B ICMP
 keyword, statistics about ICMPv4 network traffic are reported.
-Note that ICMPv4 statistics depend on sadc option "-S SNMP" to be
-collected.
+Note that ICMPv4 statistics depend on
+.B sadc
+option
+.B "-S SNMP"
+to be collected.
 The following values are displayed (formal SNMP names between
 square brackets):
 
@@ -988,8 +1086,11 @@ The number of ICMP Address Mask Reply messages sent per second [icmpOutAddrMaskR
 With the
 .B EICMP
 keyword, statistics about ICMPv4 error messages are reported.
-Note that ICMPv4 statistics depend on sadc option "-S SNMP" to be
-collected.
+Note that ICMPv4 statistics depend on
+.B  sadc
+option
+.B "-S SNMP"
+to be collected.
 The following values are displayed (formal SNMP names between
 square brackets):
 
@@ -1060,8 +1161,11 @@ The number of ICMP Redirect messages sent per second [icmpOutRedirects].
 With the
 .B TCP
 keyword, statistics about TCPv4 network traffic are reported.
-Note that TCPv4 statistics depend on sadc option "-S SNMP" to be
-collected.
+Note that TCPv4 statistics depend on
+.B sadc
+option
+.B "-S SNMP"
+to be collected.
 The following values are displayed (formal SNMP names between
 square brackets):
 
@@ -1094,8 +1198,11 @@ retransmitted octets [tcpOutSegs].
 With the
 .B ETCP
 keyword, statistics about TCPv4 network errors are reported.
-Note that TCPv4 statistics depend on sadc option "-S SNMP" to be
-collected.
+Note that TCPv4 statistics depend on
+.B sadc
+option
+.B "-S SNMP"
+to be collected.
 The following values are displayed (formal SNMP names between
 square brackets):
 
@@ -1136,8 +1243,11 @@ The number of TCP segments sent per second containing the RST flag [tcpOutRsts].
 With the
 .B UDP
 keyword, statistics about UDPv4 network traffic are reported.
-Note that UDPv4 statistics depend on sadc option "-S SNMP" to be
-collected.
+Note that UDPv4 statistics depend on
+.B sadc
+option
+.B "-S SNMP"
+to be collected.
 The following values are displayed (formal SNMP names between
 square brackets):
 
@@ -1167,8 +1277,11 @@ at the destination port [udpInErrors].
 With the
 .B SOCK6
 keyword, statistics on sockets in use are reported (IPv6).
-Note that IPv6 statistics depend on sadc option "-S IPV6" to be
-collected.
+Note that IPv6 statistics depend on
+.B sadc
+option
+.B "-S IPV6"
+to be collected.
 The following values are displayed:
 
 .B tcp6sck
@@ -1194,8 +1307,11 @@ Number of IPv6 fragments currently in use.
 With the
 .B IP6
 keyword, statistics about IPv6 network traffic are reported.
-Note that IPv6 statistics depend on sadc option "-S IPV6" to be
-collected.
+Note that IPv6 statistics depend on
+.B sadc
+option
+.B "-S IPV6"
+to be collected.
 The following values are displayed (formal SNMP names between
 square brackets):
 
@@ -1270,8 +1386,11 @@ this output interface [ipv6IfStatsOutFragCreates].
 With the
 .B EIP6
 keyword, statistics about IPv6 network errors are reported.
-Note that IPv6 statistics depend on sadc option "-S IPV6" to be
-collected.
+Note that IPv6 statistics depend on
+.B sadc
+option
+.B "-S IPV6"
+to be collected.
 The following values are displayed (formal SNMP names between
 square brackets):
 
@@ -1379,8 +1498,11 @@ datagram frame didn't carry enough data
 With the
 .B ICMP6
 keyword, statistics about ICMPv6 network traffic are reported.
-Note that ICMPv6 statistics depend on sadc option "-S IPV6" to be
-collected.
+Note that ICMPv6 statistics depend on
+.B sadc
+option
+.B "-S IPV6"
+to be collected.
 The following values are displayed (formal SNMP names between
 square brackets):
 
@@ -1502,8 +1624,11 @@ messages sent by the interface per second
 With the
 .B EICMP6
 keyword, statistics about ICMPv6 error messages are reported.
-Note that ICMPv6 statistics depend on sadc option "-S IPV6" to be
-collected.
+Note that ICMPv6 statistics depend on
+.B sadc
+option
+.B "-S IPV6"
+to be collected.
 The following values are displayed (formal SNMP names between
 square brackets):
 
@@ -1588,8 +1713,11 @@ by the interface per second
 With the
 .B UDP6
 keyword, statistics about UDPv6 network traffic are reported.
-Note that UDPv6 statistics depend on sadc option "-S IPV6" to be
-collected.
+Note that UDPv6 statistics depend on
+.B sadc
+option
+.B "-S IPV6"
+to be collected.
 The following values are displayed (formal SNMP names between
 square brackets):
 
@@ -1635,7 +1763,11 @@ All the data available from the kernel are saved in the file (in fact,
 .B sar
 calls its data collector
 .B sadc
-with the option "-S ALL". See sadc(8) manual page).
+with the option
+.B "-S ALL" .
+See
+.B sadc(8)
+manual page).
 .IP "-P { cpu [,...] | ALL }"
 Report per-processor statistics for the specified processor or processors.
 Specifying the
@@ -1686,6 +1818,29 @@ System load average for the past 15 minutes.
 .B blocked
 .RS
 Number of tasks currently blocked, waiting for I/O to complete.
+.RE
+.RE
+.IP -R
+Report memory statistics. The following values are displayed:
+
+.B frmpg/s
+.RS
+.RS
+Number of memory pages freed by the system per second.
+A negative value represents a number of pages allocated by the system.
+Note that a page has a size of 4 kiB or 8 kiB according to the machine architecture.
+.RE
+
+.B bufpg/s
+.RS
+Number of additional memory pages used as buffers by the system per second.
+A negative value means fewer pages used as buffers by the system.
+.RE
+
+.B campg/s
+.RS
+Number of additional memory pages cached by the system per second.
+A negative value means fewer pages in the cache.
 .RE
 .RE
 .IP -r
@@ -1742,39 +1897,12 @@ and usually not reclaimed unless absolutely necessary).
 Amount of inactive memory in kilobytes (memory which has been less recently
 used. It is more eligible to be reclaimed for other purposes).
 .RE
-.RE
-.IP -R
-Report memory statistics. The following values are displayed:
 
-.B frmpg/s
+.B kbdirty
 .RS
-.RS
-Number of memory pages freed by the system per second.
-A negative value represents a number of pages allocated by the system.
-Note that a page has a size of 4 kB or 8 kB according to the machine architecture.
-.RE
-
-.B bufpg/s
-.RS
-Number of additional memory pages used as buffers by the system per second.
-A negative value means fewer pages used as buffers by the system.
-.RE
-
-.B campg/s
-.RS
-Number of additional memory pages cached by the system per second.
-A negative value means fewer pages in the cache.
+Amount of memory in kilobytes waiting to get written back to the disk.
 .RE
 .RE
-.IP "-s [ hh:mm:ss ]"
-Set the starting time of the data, causing the
-.B sar
-command to extract records time-tagged at, or following, the time
-specified. The default starting time is 08:00:00.
-Hours must be given in 24-hour format. This option can be
-used only when data are read from a file (option
-.B -f
-).
 .IP -S
 Report swap space utilization statistics.
 The following values are displayed:
@@ -1809,10 +1937,19 @@ saves I/O).
 Percentage of cached swap memory in relation to the amount of used swap space.
 .RE
 .RE
+.IP "-s [ hh:mm:ss ]"
+Set the starting time of the data, causing the
+.B sar
+command to extract records time-tagged at, or following, the time
+specified. The default starting time is 08:00:00.
+Hours must be given in 24-hour format. This option can be
+used only when data are read from a file (option
+.B -f
+).
 .IP -t
 When reading data from a daily data file, indicate that
 .B sar
-should display the timestamps in the original locale time of
+should display the timestamps in the original local time of
 the data file creator. Without this option, the
 .B sar
 command displays the timestamps in the user's locale time.
@@ -1884,6 +2021,11 @@ Percentage of time spent by the CPU or CPUs to service software interrupts.
 Percentage of time spent by the CPU or CPUs to run a virtual processor.
 .RE
 
+.B %gnice
+.RS
+Percentage of time spent by the CPU or CPUs to run a niced guest.
+.RE
+
 .B %idle
 .RS
 Percentage of time that the CPU or CPUs were idle and the system
@@ -1893,6 +2035,8 @@ did not have an outstanding disk I/O request.
 Note: On SMP machines a processor that does not have any activity at all
 (0.00 for every field) is a disabled (offline) processor.
 .RE
+.IP -V
+Print version number then exit.
 .IP -v
 Report status of inode, file and other kernel tables.
 The following values are displayed:
@@ -1918,22 +2062,6 @@ Number of inode handlers used by the system.
 Number of pseudo-terminals used by the system.
 .RE
 .RE
-.IP -V
-Print version number then exit.
-.IP -w
-Report task creation and system switching activity.
-
-.B proc/s
-.RS
-.RS
-Total number of tasks created per second.
-.RE
-
-.B cswch/s
-.RS
-Total number of context switches per second.
-.RE
-.RE
 .IP -W
 Report swapping statistics. The following values are displayed:
 
@@ -1948,8 +2076,22 @@ Total number of swap pages the system brought in per second.
 Total number of swap pages the system brought out per second.
 .RE
 .RE
+.IP -w
+Report task creation and system switching activity.
+
+.B proc/s
+.RS
+.RS
+Total number of tasks created per second.
+.RE
+
+.B cswch/s
+.RS
+Total number of context switches per second.
+.RE
+.RE
 .IP -y
-Report TTY device activity. The following values are displayed:
+Report TTY devices activity. The following values are displayed:
 
 .B rcvin/s
 .RS

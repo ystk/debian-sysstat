@@ -30,6 +30,7 @@
 
 #include "version.h"
 #include "cifsiostat.h"
+#include "count.h"
 #include "common.h"
 
 #ifdef USE_NLS
@@ -55,6 +56,7 @@ int flags = 0;		/* Flag for common options and system state */
 long interval = 0;
 char timestamp[64];
 
+struct sigaction alrm_act;
 
 /*
  ***************************************************************************
@@ -71,7 +73,7 @@ void usage(char *progname)
 
 #ifdef DEBUG
 	fprintf(stderr, _("Options are:\n"
-			  "[ --debuginfo ] [ -h ] [ -k | -m ] [ -t ] [ -V ]\n"));
+			  "[ -h ] [ -k | -m ] [ -t ] [ -V ] [ --debuginfo ]\n"));
 #else
 	fprintf(stderr, _("Options are:\n"
 			  "[ -h ] [ -k | -m ] [ -t ] [ -V ]\n"));
@@ -84,12 +86,11 @@ void usage(char *progname)
  * SIGALRM signal handler.
  *
  * IN:
- * @sig	Signal number. Set to 0 for the first time, then to SIGALRM.
+ * @sig	Signal number.
  ***************************************************************************
  */
 void alarm_handler(int sig)
 {
-	signal(SIGALRM, alarm_handler);
 	alarm(interval);
 }
 
@@ -112,7 +113,7 @@ int get_cifs_nr(void)
 		/* File non-existent */
 		return 0;
 
-	while (fgets(line, 128, fp) != NULL) {
+	while (fgets(line, sizeof(line), fp) != NULL) {
 		
 		if (!strncmp(line, "Share (unique mount targets): ", 30)) {
 			sscanf(line + 30, "%d", &cifs);
@@ -168,7 +169,7 @@ void io_sys_init(void)
 	int i;
 	
 	/* How many processors on this machine? */
-	cpu_nr = get_cpu_nr(~0);
+	cpu_nr = get_cpu_nr(~0, FALSE);
 
 	/* Get number of CIFS directories in /proc/fs/cifs/Stats */
 	if ((cifs_nr = get_cifs_nr()) > 0) {
@@ -200,15 +201,10 @@ void io_sys_free(void)
 
 	/* Free CIFS directories structures */
 	for (i = 0; i < 2; i++) {
-
-		if (st_cifs[i]) {
-			free(st_cifs[i]);
-		}
+		free(st_cifs[i]);
 	}
 	
-	if (st_hdr_cifs) {
-		free(st_hdr_cifs);
-	}
+	free(st_hdr_cifs);
 }
 
 /*
@@ -334,7 +330,7 @@ void read_cifs_stat(int curr)
 	sprintf(aux, "%%*d) %%%ds",
 		MAX_NAME_LEN < 200 ? MAX_NAME_LEN - 1 : 200);
 
-	while (fgets(line, 256, fp) != NULL) {
+	while (fgets(line, sizeof(line), fp) != NULL) {
 
 		/* Read CIFS directory name */
 		if (isdigit((unsigned char) line[0]) && sscanf(line, aux , name_tmp) == 1) {
@@ -541,7 +537,7 @@ void rw_io_stat_loop(long int count, struct tm *rectime)
 		read_cifs_stat(curr);
 
 		/* Get time */
-		get_localtime(rectime);
+		get_localtime(rectime, 0);
 
 		/* Print results */
 		write_stats(curr, rectime);
@@ -660,7 +656,7 @@ int main(int argc, char **argv)
 	/* Init structures according to machine architecture */
 	io_sys_init();
 
-	get_localtime(&rectime);
+	get_localtime(&rectime, 0);
 
 	/* Get system name, release number and hostname */
 	uname(&header);
@@ -671,7 +667,10 @@ int main(int argc, char **argv)
 	printf("\n");
 
 	/* Set a handler for SIGALRM */
-	alarm_handler(0);
+	memset(&alrm_act, 0, sizeof(alrm_act));
+	alrm_act.sa_handler = (void *) alarm_handler;
+	sigaction(SIGALRM, &alrm_act, NULL);
+	alarm(interval);
 
 	/* Main loop */
 	rw_io_stat_loop(count, &rectime);

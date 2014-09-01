@@ -1,6 +1,6 @@
 /*
  * sar and sadf common routines.
- * (C) 1999-2011 by Sebastien GODARD (sysstat <at> orange.fr)
+ * (C) 1999-2014 by Sebastien GODARD (sysstat <at> orange.fr)
  *
  ***************************************************************************
  * This program is free software; you can redistribute it and/or modify it *
@@ -27,6 +27,7 @@
 #include <unistd.h>	/* For STDOUT_FILENO, among others */
 #include <dirent.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
@@ -43,6 +44,7 @@
 #define _(string) (string)
 #endif
 
+int default_file_used = FALSE;
 extern struct act_bitmap cpu_bitmap;
 
 /*
@@ -112,6 +114,44 @@ void free_structures(struct activity *act[])
 }
 
 /*
+  ***************************************************************************
+  * Try to get device real name from sysfs tree.
+  *
+  * IN:
+  * @major	Major number of the device.
+  * @minor	Minor number of the device.
+  *
+  * RETURNS:
+  * The name of the device, which may be the real name (as it appears in /dev)
+  * or NULL.
+  ***************************************************************************
+  */
+char *get_devname_from_sysfs(unsigned int major, unsigned int minor)
+{
+	static char link[32], target[PATH_MAX];
+	char *devname;
+	ssize_t r;
+
+	snprintf(link, 32, "%s/%u:%u", SYSFS_DEV_BLOCK, major, minor);
+
+	/* Get full path to device knowing its major and minor numbers */
+	r = readlink(link, target, PATH_MAX);
+	if (r <= 0 || r >= PATH_MAX) {
+		return (NULL);
+	}
+
+	target[r] = '\0';
+
+	/* Get device name */
+	devname = basename(target);
+	if (!devname || strnlen(devname, FILENAME_MAX) == 0) {
+		return (NULL);
+	}
+
+	return (devname);
+}
+
+/*
  ***************************************************************************
  * Get device real name if possible.
  * Warning: This routine may return a bad name on 2.4 kernels where
@@ -133,16 +173,20 @@ char *get_devname(unsigned int major, unsigned int minor, int pretty)
 	static char buf[32];
 	char *name;
 
-	snprintf(buf, 32, "dev%d-%d", major, minor);
+	snprintf(buf, 32, "dev%u-%u", major, minor);
 
 	if (!pretty)
 		return (buf);
 
+	name = get_devname_from_sysfs(major, minor);
+	if (name != NULL)
+		return (name);
+	
 	name = ioc_name(major, minor);
-	if ((name == NULL) || !strcmp(name, K_NODEV))
-		return (buf);
+	if ((name != NULL) && strcmp(name, K_NODEV))
+		return (name);
 
-	return (name);
+	return (buf);
 }
 
 /*
@@ -268,7 +312,7 @@ int datecmp(struct tm *rectime, struct tstamp *tse)
 
 /*
  ***************************************************************************
- * Parse a time stamp entered on the command line (hh:mm:ss) and decode it.
+ * Parse a timestamp entered on the command line (hh:mm:ss) and decode it.
  *
  * IN:
  * @argv		Arguments list.
@@ -301,17 +345,21 @@ int parse_timestamp(char *argv[], int *opt, struct tstamp *tse,
  ***************************************************************************
  * Set current daily data file name.
  *
+ * IN:
+ * @d_off	Day offset (number of days to go back in the past).
+ *
  * OUT:
  * @rectime	Current date and time.
  * @datafile	Name of daily data file.
  ***************************************************************************
  */
-void set_default_file(struct tm *rectime, char *datafile)
+void set_default_file(struct tm *rectime, char *datafile, int d_off)
 {
-	get_time(rectime);
+	get_time(rectime, d_off);
 	snprintf(datafile, MAX_FILE_LEN,
 		 "%s/sa%02d", SA_DIR, rectime->tm_mday);
 	datafile[MAX_FILE_LEN - 1] = '\0';
+	default_file_used = TRUE;
 }
 
 /*
@@ -359,7 +407,8 @@ void get_itv_value(struct record_header *record_hdr_curr,
  * @file_hdr	System activity file standard header.
  *
  * OUT:
- * @rectime	Date and time from file header.
+ * @rectime	Date (and possibly time) from file header. Only the date,
+ * 		not the time, should be used by the caller.
  ***************************************************************************
  */
 void get_file_timestamp_struct(unsigned int flags, struct tm *rectime,
@@ -368,8 +417,8 @@ void get_file_timestamp_struct(unsigned int flags, struct tm *rectime,
 	struct tm *loc_t;
 
 	if (PRINT_TRUE_TIME(flags)) {
-		/* Get local time. This is just to fill HH:MM:SS fields */
-		get_time(rectime);
+		/* Get local time. This is just to fill fields with a default value. */
+		get_time(rectime, 0);
 
 		rectime->tm_mday = file_hdr->sa_day;
 		rectime->tm_mon  = file_hdr->sa_month;
@@ -890,20 +939,21 @@ int sa_fread(int ifd, void *buffer, int size, int mode)
  * Display sysstat version used to create system activity data file.
  *
  * IN:
- * @file_magic	File magic header
+ * @st		Output stream (stderr or stdout).
+ * @file_magic	File magic header.
  ***************************************************************************
  */
-void display_sa_file_version(struct file_magic *file_magic)
+void display_sa_file_version(FILE *st, struct file_magic *file_magic)
 {
-	fprintf(stderr, _("File created using sar/sadc from sysstat version %d.%d.%d"),
+	fprintf(st, _("File created by sar/sadc from sysstat version %d.%d.%d"),
 		file_magic->sysstat_version,
 		file_magic->sysstat_patchlevel,
 		file_magic->sysstat_sublevel);
 
 	if (file_magic->sysstat_extraversion) {
-		fprintf(stderr, ".%d", file_magic->sysstat_extraversion);
+		fprintf(st, ".%d", file_magic->sysstat_extraversion);
 	}
-	fprintf(stderr, "\n");
+	fprintf(st, "\n");
 }
 
 /*
@@ -930,7 +980,7 @@ void handle_invalid_sa_file(int *fd, struct file_magic *file_magic, char *file,
 
 	if ((n == FILE_MAGIC_SIZE) && (file_magic->sysstat_magic == SYSSTAT_MAGIC)) {
 		/* This is a sysstat file, but this file has an old format */
-		display_sa_file_version(file_magic);
+		display_sa_file_version(stderr, file_magic);
 
 		fprintf(stderr,
 			_("Current sysstat version can no longer read the format of this file (%#x)\n"),
@@ -1055,10 +1105,17 @@ void check_file_actlst(int *ifd, char *dfile, struct activity *act[],
 	int i, j, n, p;
 	unsigned int a_cpu = FALSE;
 	struct file_activity *fal;
+	void *buffer = NULL;
 
 	/* Open sa data file */
 	if ((*ifd = open(dfile, O_RDONLY)) < 0) {
+		int saved_errno = errno;
+		
 		fprintf(stderr, _("Cannot open %s: %s\n"), dfile, strerror(errno));
+		
+		if ((saved_errno == ENOENT) && default_file_used) {
+			fprintf(stderr, _("Please check if data collecting is enabled\n"));
+		}
 		exit(2);
 	}
 
@@ -1080,15 +1137,19 @@ void check_file_actlst(int *ifd, char *dfile, struct activity *act[],
 		}
 	}
 
+	SREALLOC(buffer, char, file_magic->header_size);
+	
 	/* Read sa data file standard header and allocate activity list */
-	sa_fread(*ifd, file_hdr, FILE_HEADER_SIZE, HARD_SIZE);
-
-	SREALLOC(*file_actlst, struct file_activity, FILE_ACTIVITY_SIZE * file_hdr->sa_nr_act);
+	sa_fread(*ifd, buffer, file_magic->header_size, HARD_SIZE);
+	memcpy(file_hdr, buffer, MINIMUM(file_magic->header_size, FILE_HEADER_SIZE));
+	free(buffer);
+	
+	SREALLOC(*file_actlst, struct file_activity, FILE_ACTIVITY_SIZE * file_hdr->sa_act_nr);
 	fal = *file_actlst;
 
 	/* Read activity list */
 	j = 0;
-	for (i = 0; i < file_hdr->sa_nr_act; i++, fal++) {
+	for (i = 0; i < file_hdr->sa_act_nr; i++, fal++) {
 
 		sa_fread(*ifd, fal, FILE_ACTIVITY_SIZE, HARD_SIZE);
 
@@ -1124,9 +1185,19 @@ void check_file_actlst(int *ifd, char *dfile, struct activity *act[],
 		if (fal->size > act[p]->msize) {
 			act[p]->msize = fal->size;
 		}
-		act[p]->fsize = fal->size;
+		/*
+		 * NOTA BENE:
+		 * If current activity is a volatile one then fal->nr is the
+		 * number of items (CPU at the present time as only CPU related
+		 * activities are volatile today) for the statistics located
+		 * between the start of the data file and the first restart mark.
+		 * Volatile activities have a number of items which can vary
+		 * in file. In this case, a RESTART record is followed by the
+		 * volatile activity structures.
+		 */
 		act[p]->nr    = fal->nr;
 		act[p]->nr2   = fal->nr2;
+		act[p]->fsize = fal->size;
 		/*
 		 * This is a known activity with a known format
 		 * (magical number). Only such activities will be displayed.
@@ -1155,11 +1226,11 @@ void check_file_actlst(int *ifd, char *dfile, struct activity *act[],
 
 		/* Here is a selected activity: Does it exist in file? */
 		fal = *file_actlst;
-		for (j = 0; j < file_hdr->sa_nr_act; j++, fal++) {
+		for (j = 0; j < file_hdr->sa_act_nr; j++, fal++) {
 			if (act[i]->id == fal->id)
 				break;
 		}
-		if (j == file_hdr->sa_nr_act) {
+		if (j == file_hdr->sa_act_nr) {
 			/* No: Unselect it */
 			act[i]->options &= ~AO_SELECTED;
 		}
@@ -1170,6 +1241,89 @@ void check_file_actlst(int *ifd, char *dfile, struct activity *act[],
 		close(*ifd);
 		exit(1);
 	}
+}
+
+/*
+ ***************************************************************************
+ * Set number of items for current volatile activity and reallocate its
+ * structures accordingly.
+ * NB: As only activities related to CPU can be volatile, the number of
+ * items corresponds in fact to the number of CPU.
+ *
+ * IN:
+ * @act		Array of activities.
+ * @act_nr	Number of items for current volatile activity.
+ * @act_id	Activity identification for current volatile activity.
+ *
+ * RETURN:
+ * -1 if unknown activity and 0 otherwise.
+ ***************************************************************************
+ */
+int reallocate_vol_act_structures(struct activity *act[], unsigned int act_nr,
+	                           unsigned int act_id)
+{
+	int j, p;
+	
+	if ((p = get_activity_position(act, act_id)) < 0)
+		/* Ignore unknown activity */
+		return -1;
+	
+	act[p]->nr = act_nr;
+
+	for (j = 0; j < 3; j++) {
+		SREALLOC(act[p]->buf[j], void, act[p]->msize * act[p]->nr * act[p]->nr2);
+	}
+	
+	return 0;
+}
+
+/*
+ ***************************************************************************
+ * Read the volatile activities structures following a RESTART record.
+ * Then set number of items for each corresponding activity and reallocate
+ * structures.
+ *
+ * IN:
+ * @ifd		Input file descriptor.
+ * @act		Array of activities.
+ * @file	Name of file being read.
+ * @file_magic	file_magic structure filled with file magic header data.
+ * @vol_act_nr	Number of volatile activities structures to read.
+ *
+ * RETURNS:
+ * New number of items.
+ *
+ * NB: As only activities related to CPU can be volatile, the new number of
+ * items corresponds in fact to the new number of CPU.
+ ***************************************************************************
+ */
+__nr_t read_vol_act_structures(int ifd, struct activity *act[], char *file,
+			       struct file_magic *file_magic,
+			       unsigned int vol_act_nr)
+{
+	struct file_activity file_act;
+	int item_nr = 0;
+	int i, rc;
+	
+	for (i = 0; i < vol_act_nr; i++) {
+		
+		sa_fread(ifd, &file_act, FILE_ACTIVITY_SIZE, HARD_SIZE);
+		
+		if (file_act.id) {
+			rc = reallocate_vol_act_structures(act, file_act.nr, file_act.id);
+			if ((rc == 0) && !item_nr) {
+				item_nr = file_act.nr;
+			}
+		}
+		/* else ignore empty structures that may exist */
+	}
+	
+	if (!item_nr) {
+		/* All volatile activities structures cannot be empty */
+		handle_invalid_sa_file(&ifd, file_magic, file, 0);
+	}
+
+	return item_nr;
 }
 
 /*
@@ -1186,7 +1340,7 @@ void check_file_actlst(int *ifd, char *dfile, struct activity *act[],
  * @flags	Common flags and system state.
  *
  * RETURNS:
- * 0 on success, 1 otherwise.
+ * 0 on success.
  ***************************************************************************
  */
 int parse_sar_opt(char *argv[], int *opt, struct activity *act[],
@@ -1202,7 +1356,6 @@ int parse_sar_opt(char *argv[], int *opt, struct activity *act[],
 			select_all_activities(act);
 
 			/* Force '-P ALL -I XALL' */
-			*flags |= S_F_PER_PROC;
 
 			p = get_activity_position(act, A_MEMORY);
 			act[p]->opt_flags |= AO_F_MEM_AMT + AO_F_MEM_DIA +
@@ -1234,9 +1387,38 @@ int parse_sar_opt(char *argv[], int *opt, struct activity *act[],
 			SELECT_ACTIVITY(A_DISK);
 			break;
 
+		case 'F':
+			SELECT_ACTIVITY(A_FILESYSTEM);
+			break;
+			
 		case 'H':
 			p = get_activity_position(act, A_HUGE);
 			act[p]->options   |= AO_SELECTED;
+			break;
+			
+		case 'j':
+			if (argv[*opt + 1]) {
+				(*opt)++;
+				if (strnlen(argv[*opt], MAX_FILE_LEN) >= MAX_FILE_LEN - 1)
+					return 1;
+
+				strncpy(persistent_name_type, argv[*opt], MAX_FILE_LEN - 1);
+				persistent_name_type[MAX_FILE_LEN - 1] = '\0';
+				strtolower(persistent_name_type);
+				if (!get_persistent_type_dir(persistent_name_type)) {
+					fprintf(stderr, _("Invalid type of persistent device name\n"));
+					return 2;
+				}
+				/*
+				 * If persistent device name doesn't exist for device, use
+				 * its pretty name.
+				 */
+				*flags |= S_F_PERSIST_NAME + S_F_DEV_PRETTY;
+				return 0;
+			}
+			else {
+				return 1;
+			}
 			break;
 			
 		case 'p':
@@ -1266,6 +1448,12 @@ int parse_sar_opt(char *argv[], int *opt, struct activity *act[],
 			break;
 
 		case 't':
+			/*
+			 * Check sar option -t here (as it can be combined
+			 * with other ones, eg. "sar -rtu ..."
+			 * But sadf option -t is checked in sadf.c as it won't
+			 * be entered as a sar option after "--".
+			 */
 			if (caller == C_SAR) {
 				*flags |= S_F_TRUE_TIME;
 			}
@@ -1553,7 +1741,6 @@ int parse_sa_P_opt(char *argv[], int *opt, unsigned int *flags, struct activity 
 	p = get_activity_position(act, A_CPU);
 
 	if (argv[++(*opt)]) {
-		*flags |= S_F_PER_PROC;
 
 		for (t = strtok(argv[*opt], ","); t; t = strtok(NULL, ",")) {
 			if (!strcmp(t, K_ALL)) {
@@ -1580,6 +1767,45 @@ int parse_sa_P_opt(char *argv[], int *opt, unsigned int *flags, struct activity 
 	else
 		return 1;
 
+	return 0;
+}
+
+/*
+ ***************************************************************************
+ * Compute network interface utilization.
+ *
+ * IN:
+ * @st_net_dev	Structure with network interface stats.
+ * @rx		Number of bytes received per second.
+ * @tx		Number of bytes transmitted per second.
+ *
+ * RETURNS:
+ * NIC utilization (0-100%).
+ ***************************************************************************
+ */
+double compute_ifutil(struct stats_net_dev *st_net_dev, double rx, double tx)
+{
+	unsigned long long speed;
+	
+	if (st_net_dev->speed) {
+		
+		speed = st_net_dev->speed * 1000000;
+		
+		if (st_net_dev->duplex == C_DUPLEX_FULL) {
+			/* Full duplex */
+			if (rx > tx) {
+				return (rx * 800 / speed);
+			}
+			else {
+				return (tx * 800 / speed);
+			}
+		}
+		else {
+			/* Half duplex */
+			return ((rx + tx) * 800 / speed);
+		}
+	}
+	
 	return 0;
 }
 
