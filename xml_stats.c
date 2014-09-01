@@ -1,6 +1,6 @@
 /*
  * xml_stats.c: Funtions used by sadf to display statistics in XML.
- * (C) 1999-2011 by Sebastien GODARD (sysstat <at> orange.fr)
+ * (C) 1999-2014 by Sebastien GODARD (sysstat <at> orange.fr)
  *
  ***************************************************************************
  * This program is free software; you can redistribute it and/or modify it *
@@ -138,10 +138,11 @@ __print_funct_t xml_print_cpu_stats(struct activity *a, int curr, int tab,
 				/*
 				 * If the CPU is offline then it is omited from /proc/stat:
 				 * All the fields couldn't have been read and the sum of them is zero.
-				 * (Remember that guest time is already included in user mode.)
+				 * (Remember that guest/guest_nice times are already included in
+				 * user/nice modes.)
 				 */
-				if ((scc->cpu_user    + scc->cpu_nice + scc->cpu_sys   +
-				     scc->cpu_iowait  + scc->cpu_idle + scc->cpu_steal +
+				if ((scc->cpu_user + scc->cpu_nice + scc->cpu_sys +
+				     scc->cpu_iowait + scc->cpu_idle + scc->cpu_steal +
 				     scc->cpu_hardirq + scc->cpu_softirq) == 0) {
 					/*
 					 * Set current struct fields (which have been set to zero)
@@ -185,9 +186,10 @@ __print_funct_t xml_print_cpu_stats(struct activity *a, int curr, int tab,
 							"irq=\"%.2f\" "
 							"soft=\"%.2f\" "
 							"guest=\"%.2f\" "
+							"gnice=\"%.2f\" "
 							"idle=\"%.2f\"/>",
 							i - 1, 0.0, 0.0, 0.0, 0.0,
-							0.0, 0.0, 0.0, 0.0,
+							0.0, 0.0, 0.0, 0.0, 0.0,
 							cpu_offline ? 0.0 : 100.0);
 					}
 					continue;
@@ -224,22 +226,27 @@ __print_funct_t xml_print_cpu_stats(struct activity *a, int curr, int tab,
 					"irq=\"%.2f\" "
 					"soft=\"%.2f\" "
 					"guest=\"%.2f\" "
+					"gnice=\"%.2f\" "
 					"idle=\"%.2f\"/>",
 					cpuno,
 					(scc->cpu_user - scc->cpu_guest) < (scp->cpu_user - scp->cpu_guest) ?
 					0.0 :
 					ll_sp_value(scp->cpu_user - scp->cpu_guest,
-						    scc->cpu_user - scc->cpu_guest,     g_itv),
-					ll_sp_value(scp->cpu_nice,    scc->cpu_nice,    g_itv),
-					ll_sp_value(scp->cpu_sys,     scc->cpu_sys,     g_itv),
-					ll_sp_value(scp->cpu_iowait,  scc->cpu_iowait,  g_itv),
-					ll_sp_value(scp->cpu_steal,   scc->cpu_steal,   g_itv),
+						    scc->cpu_user - scc->cpu_guest, g_itv),
+					(scc->cpu_nice - scc->cpu_guest_nice) < (scp->cpu_nice - scp->cpu_guest_nice) ?
+					0.0 :
+					ll_sp_value(scp->cpu_nice - scp->cpu_guest_nice,
+						    scc->cpu_nice - scc->cpu_guest_nice, g_itv),
+					ll_sp_value(scp->cpu_sys, scc->cpu_sys, g_itv),
+					ll_sp_value(scp->cpu_iowait, scc->cpu_iowait, g_itv),
+					ll_sp_value(scp->cpu_steal, scc->cpu_steal, g_itv),
 					ll_sp_value(scp->cpu_hardirq, scc->cpu_hardirq, g_itv),
 					ll_sp_value(scp->cpu_softirq, scc->cpu_softirq, g_itv),
-					ll_sp_value(scp->cpu_guest,   scc->cpu_guest,   g_itv),
+					ll_sp_value(scp->cpu_guest, scc->cpu_guest, g_itv),
+					ll_sp_value(scp->cpu_guest_nice, scc->cpu_guest_nice, g_itv),
 					scc->cpu_idle < scp->cpu_idle ?
 					0.0 :
-					ll_sp_value(scp->cpu_idle,   scc->cpu_idle,   g_itv));
+					ll_sp_value(scp->cpu_idle, scc->cpu_idle, g_itv));
 			}
 		}
 	}
@@ -477,8 +484,11 @@ __print_funct_t xml_print_memory_stats(struct activity *a, int curr, int tab,
 		xprintf(tab, "<active>%lu</active>",
 			smc->activekb);
 
-		xprintf(tab--, "<inactive>%lu</inactive>",
+		xprintf(tab, "<inactive>%lu</inactive>",
 			smc->inactkb);
+		
+		xprintf(tab--, "<dirty>%lu</dirty>",
+			smc->dirtykb);
 	}
 
 	if (DISPLAY_SWAP(a->opt_flags)) {
@@ -648,7 +658,7 @@ __print_funct_t xml_print_disk_stats(struct activity *a, int curr, int tab,
 	int i, j;
 	struct stats_disk *sdc,	*sdp;
 	struct ext_disk_stats xds;
-	char *dev_name;
+	char *dev_name, *persist_dev_name;
 
 	xprintf(tab, "<disk per=\"second\">");
 	tab++;
@@ -667,14 +677,24 @@ __print_funct_t xml_print_disk_stats(struct activity *a, int curr, int tab,
 		compute_ext_disk_stats(sdc, sdp, itv, &xds);
 
 		dev_name = NULL;
+		persist_dev_name = NULL;
 
-		if ((USE_PRETTY_OPTION(flags)) && (sdc->major == dm_major)) {
-			dev_name = transform_devmapname(sdc->major, sdc->minor);
+		if (DISPLAY_PERSIST_NAME_S(flags)) {
+			persist_dev_name = get_persistent_name_from_pretty(get_devname(sdc->major, sdc->minor, TRUE));
 		}
+		
+		if (persist_dev_name) {
+			dev_name = persist_dev_name;
+		}
+		else {
+			if ((USE_PRETTY_OPTION(flags)) && (sdc->major == dm_major)) {
+				dev_name = transform_devmapname(sdc->major, sdc->minor);
+			}
 
-		if (!dev_name) {
-			dev_name = get_devname(sdc->major, sdc->minor,
-					       USE_PRETTY_OPTION(flags));
+			if (!dev_name) {
+				dev_name = get_devname(sdc->major, sdc->minor,
+						       USE_PRETTY_OPTION(flags));
+			}
 		}
 
 		xprintf(tab, "<disk-device dev=\"%s\" "
@@ -718,6 +738,7 @@ __print_funct_t xml_print_net_dev_stats(struct activity *a, int curr, int tab,
 {
 	int i, j;
 	struct stats_net_dev *sndc, *sndp;
+	double rxkb, txkb, ifutil;
 
 	if (!IS_SELECTED(a->options) || (a->nr <= 0))
 		goto close_xml_markup;
@@ -735,6 +756,10 @@ __print_funct_t xml_print_net_dev_stats(struct activity *a, int curr, int tab,
 		j = check_net_dev_reg(a, curr, !curr, i);
 		sndp = (struct stats_net_dev *) ((char *) a->buf[!curr] + j * a->msize);
 
+		rxkb = S_VALUE(sndp->rx_bytes, sndc->rx_bytes, itv);
+		txkb = S_VALUE(sndp->tx_bytes, sndc->tx_bytes, itv);
+		ifutil = compute_ifutil(sndc, rxkb, txkb);
+
 		xprintf(tab, "<net-dev iface=\"%s\" "
 			"rxpck=\"%.2f\" "
 			"txpck=\"%.2f\" "
@@ -742,15 +767,17 @@ __print_funct_t xml_print_net_dev_stats(struct activity *a, int curr, int tab,
 			"txkB=\"%.2f\" "
 			"rxcmp=\"%.2f\" "
 			"txcmp=\"%.2f\" "
-			"rxmcst=\"%.2f\"/>",
+			"rxmcst=\"%.2f\" "
+			"ifutil-percent=\"%.2f\"/>",
 			sndc->interface,
 			S_VALUE(sndp->rx_packets,    sndc->rx_packets,    itv),
 			S_VALUE(sndp->tx_packets,    sndc->tx_packets,    itv),
-			S_VALUE(sndp->rx_bytes,      sndc->rx_bytes,      itv) / 1024,
-			S_VALUE(sndp->tx_bytes,      sndc->tx_bytes,      itv) / 1024,
+			rxkb / 1024,
+			txkb / 1024,
 			S_VALUE(sndp->rx_compressed, sndc->rx_compressed, itv),
 			S_VALUE(sndp->tx_compressed, sndc->tx_compressed, itv),
-			S_VALUE(sndp->multicast,     sndc->multicast,     itv));
+			S_VALUE(sndp->multicast,     sndc->multicast,     itv),
+			ifutil);
 	}
 	tab--;
 
@@ -1969,4 +1996,57 @@ close_xml_markup:
 	if (CLOSE_MARKUP(a->options)) {
 		xml_markup_power_management(tab, CLOSE_XML_MARKUP);
 	}
+}
+
+/*
+ ***************************************************************************
+ * Display filesystems statistics in XML.
+ *
+ * IN:
+ * @a		Activity structure with statistics.
+ * @curr	Index in array for current sample statistics.
+ * @tab		Indentation in XML output.
+ * @itv		Interval of time in jiffies.
+ ***************************************************************************
+ */
+__print_funct_t xml_print_filesystem_stats(struct activity *a, int curr, int tab,
+					   unsigned long long itv)
+{
+	int i;
+	struct stats_filesystem *sfc;
+
+	xprintf(tab, "<filesystems>");
+	tab++;
+
+	for (i = 0; i < a->nr; i++) {
+
+		sfc = (struct stats_filesystem *) ((char *) a->buf[curr] + i * a->msize);
+
+		if (!sfc->f_blocks)
+			/* Size of filesystem is null: We are at the end of the list */
+			break;
+
+		xprintf(tab, "<filesystem fsname=\"%s\" "
+			"MBfsfree=\"%.0f\" "
+			"MBfsused=\"%.0f\" "
+			"fsused-percent=\"%.2f\" "
+			"ufsused-percent=\"%.2f\" "
+			"Ifree=\"%llu\" "
+			"Iused=\"%llu\" "
+			"Iused-percent=\"%.2f\"/>",
+			sfc->fs_name,
+			(double) sfc->f_bfree / 1024 / 1024,
+			(double) (sfc->f_blocks - sfc->f_bfree) / 1024 / 1024,
+			/* f_blocks is not null. But test it anyway ;-) */
+			sfc->f_blocks ? SP_VALUE(sfc->f_bfree, sfc->f_blocks, sfc->f_blocks)
+				      : 0.0,
+			sfc->f_blocks ? SP_VALUE(sfc->f_bavail, sfc->f_blocks, sfc->f_blocks)
+				      : 0.0,
+			sfc->f_ffree,
+			sfc->f_files - sfc->f_ffree,
+			sfc->f_files ? SP_VALUE(sfc->f_ffree, sfc->f_files, sfc->f_files)
+				     : 0.0);
+	}
+
+	xprintf(--tab, "</filesystems>");
 }

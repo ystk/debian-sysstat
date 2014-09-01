@@ -1,6 +1,6 @@
 /*
  * sadf_misc.c: Funtions used by sadf to display special records
- * (C) 2011 by Sebastien GODARD (sysstat <at> orange.fr)
+ * (C) 2011-2014 by Sebastien GODARD (sysstat <at> orange.fr)
  *
  ***************************************************************************
  * This program is free software; you can redistribute it and/or modify it *
@@ -45,10 +45,11 @@ extern unsigned int flags;
  * @utc		True if @cur_time is expressed in UTC.
  * @sep		Character used as separator.
  * @file_hdr	System activity file standard header.
+ * @cpu_nr	CPU count associated with restart mark.
  ***************************************************************************
  */
 void print_dbppc_restart(char *cur_date, char *cur_time, int utc, char sep,
-			 struct file_header *file_hdr)
+			 struct file_header *file_hdr, unsigned int cpu_nr)
 {
 	printf("%s%c-1%c", file_hdr->sa_nodename, sep, sep);
 	if (strlen(cur_date)) {
@@ -58,7 +59,8 @@ void print_dbppc_restart(char *cur_date, char *cur_time, int utc, char sep,
 	if (strlen(cur_date) && utc) {
 		printf(" UTC");
 	}
-	printf("%cLINUX-RESTART\n", sep);
+	printf("%cLINUX-RESTART\t(%d CPU)\n",
+	       sep, cpu_nr > 1 ? cpu_nr - 1 : 1);
 }
 
 /*
@@ -72,14 +74,16 @@ void print_dbppc_restart(char *cur_date, char *cur_time, int utc, char sep,
  * @cur_time	Time string of current restart message.
  * @utc		True if @cur_time is expressed in UTC.
  * @file_hdr	System activity file standard header.
+ * @cpu_nr	CPU count associated with restart mark.
  ***************************************************************************
  */
 __printf_funct_t print_db_restart(int *tab, int action, char *cur_date,
-				  char *cur_time, int utc, struct file_header *file_hdr)
+				  char *cur_time, int utc, struct file_header *file_hdr,
+				  unsigned int cpu_nr)
 {
 	/* Actions F_BEGIN and F_END ignored */
 	if (action == F_MAIN) {
-		print_dbppc_restart(cur_date, cur_time, utc, ';', file_hdr);
+		print_dbppc_restart(cur_date, cur_time, utc, ';', file_hdr, cpu_nr);
 	}
 }
 
@@ -94,14 +98,16 @@ __printf_funct_t print_db_restart(int *tab, int action, char *cur_date,
  * @cur_time	Time string of current restart message.
  * @utc		True if @cur_time is expressed in UTC.
  * @file_hdr	System activity file standard header.
+ * @cpu_nr	CPU count associated with restart mark.
  ***************************************************************************
  */
 __printf_funct_t print_ppc_restart(int *tab, int action, char *cur_date,
-				   char *cur_time, int utc, struct file_header *file_hdr)
+				   char *cur_time, int utc, struct file_header *file_hdr,
+				   unsigned int cpu_nr)
 {
 	/* Actions F_BEGIN and F_END ignored */
 	if (action == F_MAIN) {
-		print_dbppc_restart(cur_date, cur_time, utc, '\t', file_hdr);
+		print_dbppc_restart(cur_date, cur_time, utc, '\t', file_hdr, cpu_nr);
 	}
 }
 
@@ -116,20 +122,22 @@ __printf_funct_t print_ppc_restart(int *tab, int action, char *cur_date,
  * @cur_time	Time string of current restart message.
  * @utc		True if @cur_time is expressed in UTC.
  * @file_hdr	System activity file standard header (unused here).
+ * @cpu_nr	CPU count associated with restart mark.
  *
  * OUT:
  * @tab		Number of tabulations.
  ***************************************************************************
  */
 __printf_funct_t print_xml_restart(int *tab, int action, char *cur_date,
-				   char *cur_time, int utc, struct file_header *file_hdr)
+				   char *cur_time, int utc, struct file_header *file_hdr,
+				   unsigned int cpu_nr)
 {
 	if (action & F_BEGIN) {
 		xprintf((*tab)++, "<restarts>");
 	}
 	if (action & F_MAIN) {
-		xprintf(*tab, "<boot date=\"%s\" time=\"%s\" utc=\"%d\"/>",
-			cur_date, cur_time, utc ? 1 : 0);
+		xprintf(*tab, "<boot date=\"%s\" time=\"%s\" utc=\"%d\" cpu_count=\"%d\"/>",
+			cur_date, cur_time, utc ? 1 : 0, cpu_nr > 1 ? cpu_nr - 1 : 1);
 	}
 	if (action & F_END) {
 		xprintf(--(*tab), "</restarts>");
@@ -147,13 +155,15 @@ __printf_funct_t print_xml_restart(int *tab, int action, char *cur_date,
  * @cur_time	Time string of current restart message.
  * @utc		True if @cur_time is expressed in UTC.
  * @file_hdr	System activity file standard header (unused here).
+ * @cpu_nr	CPU count associated with restart mark.
  *
  * OUT:
  * @tab		Number of tabulations.
  ***************************************************************************
  */
 __printf_funct_t print_json_restart(int *tab, int action, char *cur_date,
-				    char *cur_time, int utc, struct file_header *file_hdr)
+				    char *cur_time, int utc, struct file_header *file_hdr,
+				    unsigned int cpu_nr)
 {
 	static int sep = FALSE;
 	
@@ -166,8 +176,8 @@ __printf_funct_t print_json_restart(int *tab, int action, char *cur_date,
 			printf(",\n");
 		}
 		xprintf((*tab)++, "{");
-		xprintf(*tab, "\"boot\": {\"date\": \"%s\", \"time\": \"%s\", \"utc\": %d}",
-			cur_date, cur_time, utc ? 1 : 0);
+		xprintf(*tab, "\"boot\": {\"date\": \"%s\", \"time\": \"%s\", \"utc\": %d, \"cpu_count\": %d}",
+			cur_date, cur_time, utc ? 1 : 0, cpu_nr > 1 ? cpu_nr - 1 : 1);
 		xprintf0(--(*tab), "}");
 		sep = TRUE;
 	}
@@ -480,14 +490,15 @@ __printf_funct_t print_xml_header(int *tab, int action, char *dfile,
 				  struct file_header *file_hdr, __nr_t cpu_nr,
 				  struct activity *act[], unsigned int id_seq[])
 {
-	struct tm rectime;
+	struct tm rectime, *loc_t;
 	char cur_time[32];
 
 	if (action & F_BEGIN) {
 		printf("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 		printf("<!DOCTYPE sysstat PUBLIC \"DTD v%s sysstat //EN\"\n",
 		       XML_DTD_VERSION);
-		printf("\"http://pagesperso-orange.fr/sebastien.godard/sysstat.dtd\">\n");
+		printf("\"http://pagesperso-orange.fr/sebastien.godard/sysstat-%s.dtd\">\n",
+		       XML_DTD_VERSION);
 		
 		xprintf(*tab, "<sysstat>");
 
@@ -504,8 +515,14 @@ __printf_funct_t print_xml_header(int *tab, int action, char *dfile,
 
 		/* Fill file timestmap structure (rectime) */
 		get_file_timestamp_struct(flags, &rectime, file_hdr);
-		strftime(cur_time, 32, "%Y-%m-%d", &rectime);
+		strftime(cur_time, sizeof(cur_time), "%Y-%m-%d", &rectime);
 		xprintf(*tab, "<file-date>%s</file-date>", cur_time);
+
+		if ((loc_t = gmtime((const time_t *) &file_hdr->sa_ust_time)) != NULL) {
+			strftime(cur_time, sizeof(cur_time), "%T", loc_t);
+			xprintf(*tab, "<file-utc-time>%s</file-utc-time>", cur_time);
+		}
+
 	}
 	if (action & F_END) {
 		xprintf(--(*tab), "</host>");
@@ -536,7 +553,7 @@ __printf_funct_t print_json_header(int *tab, int action, char *dfile,
 				   struct file_header *file_hdr, __nr_t cpu_nr,
 				   struct activity *act[], unsigned int id_seq[])
 {
-	struct tm rectime;
+	struct tm rectime, *loc_t;
 	char cur_time[32];
 
 	if (action & F_BEGIN) {
@@ -557,8 +574,15 @@ __printf_funct_t print_json_header(int *tab, int action, char *dfile,
 
 		/* Fill file timestmap structure (rectime) */
 		get_file_timestamp_struct(flags, &rectime, file_hdr);
-		strftime(cur_time, 32, "%Y-%m-%d", &rectime);
+		strftime(cur_time, sizeof(cur_time), "%Y-%m-%d", &rectime);
 		xprintf0(*tab, "\"file-date\": \"%s\"", cur_time);
+		
+		if ((loc_t = gmtime((const time_t *) &file_hdr->sa_ust_time)) != NULL) {
+			strftime(cur_time, sizeof(cur_time), "%T", loc_t);
+			printf(",\n");
+			xprintf0(*tab, "\"file-utc-time\": \"%s\"", cur_time);
+		}
+
 	}
 	if (action & F_END) {
 		printf("\n");
@@ -589,13 +613,15 @@ __printf_funct_t print_hdr_header(int *tab, int action, char *dfile,
 				  struct activity *act[], unsigned int id_seq[])
 {
 	int i, p;
+	struct tm *loc_t;
+	char cur_time[32];
 
-	/* Actions F_BEGIN and F_END ignored */
+	/* Actions F_MAIN and F_END ignored */
 	if (action & F_BEGIN) {
 		printf(_("System activity data file: %s (%#x)\n"),
 		       dfile, file_magic->format_magic);
 
-		display_sa_file_version(file_magic);
+		display_sa_file_version(stdout, file_magic);
 
 		if (file_magic->format_magic != FORMAT_MAGIC) {
 			return;
@@ -606,8 +632,21 @@ __printf_funct_t print_hdr_header(int *tab, int action, char *dfile,
 				 file_hdr->sa_sysname, file_hdr->sa_release,
 				 file_hdr->sa_nodename, file_hdr->sa_machine,
 				 cpu_nr > 1 ? cpu_nr - 1 : 1);
+		
+		printf(_("Number of CPU for last samples in file: %u\n"),
+		       file_hdr->sa_last_cpu_nr > 1 ? file_hdr->sa_last_cpu_nr - 1 : 1);
+		
+		if ((loc_t = gmtime((const time_t *) &file_hdr->sa_ust_time)) != NULL) {
+			printf(_("File time: "));
+			strftime(cur_time, sizeof(cur_time), "%T", loc_t);
+			printf("%s UTC\n", cur_time);
+		}
 
 		printf(_("Size of a long int: %d\n"), file_hdr->sa_sizeof_long);
+		
+		/* Number of activities (number of volatile activities) in file */
+		printf("sa_act_nr (sa_vol_act_nr): %u (%u)\n",
+		       file_hdr->sa_act_nr, file_hdr->sa_vol_act_nr);
 
 		printf(_("List of activities:\n"));
 

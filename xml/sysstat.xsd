@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns="http://pagesperso-orange.fr/sebastien.godard/sysstat" targetNamespace="http://pagesperso-orange.fr/sebastien.godard/sysstat" elementFormDefault="qualified">
 <xs:annotation>
-	<xs:appinfo>-- XML Schema v2.13 for sysstat. See sadf.h --</xs:appinfo>
+	<xs:appinfo>-- XML Schema v2.19 for sysstat. See sadf.h --</xs:appinfo>
 </xs:annotation>
 
 <xs:element name="sysstat" type="sysstat-type"></xs:element>
@@ -25,6 +25,7 @@
 		<xs:element name="release" type="release-type"></xs:element>
 		<xs:element name="machine" type="machine-type"></xs:element>
 		<xs:element name="file-date" type="file-date-type"></xs:element>
+		<xs:element name="file-utc-time" type="file-utc-time-type"></xs:element>
 		<xs:element name="number-of-cpus" type="number-of-cpus-type"></xs:element>
 		<xs:element name="statistics" type="statistics-type"></xs:element>
 		<xs:element name="restarts" type="restarts-type"></xs:element>
@@ -51,6 +52,11 @@
 <xs:element name="file-date" type="file-date-type"></xs:element>
 <xs:simpleType name="file-date-type">
 	<xs:restriction base="xs:date"></xs:restriction>
+</xs:simpleType>
+
+<xs:element name="file-utc-time" type="file-utc-time-type"></xs:element>
+<xs:simpleType name="file-utc-time-type">
+        <xs:restriction base="xs:time"></xs:restriction>
 </xs:simpleType>
 
 <xs:element name="number-of-cpus" type="number-of-cpus-type"></xs:element>
@@ -97,6 +103,7 @@
 		<xs:element name="disk" type="disk-type"></xs:element>
 		<xs:element name="network" type="network-type"></xs:element>
 		<xs:element name="power-management" type="power-management-type"></xs:element>
+		<xs:element name="filesystems" type="filesystems-type"></xs:element>
 	</xs:sequence>
 	<xs:attribute name="date" type="xs:date"></xs:attribute>
 	<xs:attribute name="time" type="xs:time"></xs:attribute>
@@ -109,6 +116,7 @@
 	<xs:attribute name="date" type="xs:date"></xs:attribute>
 	<xs:attribute name="time" type="xs:time"></xs:attribute>
 	<xs:attribute name="utc" type="xs:nonNegativeInteger"></xs:attribute>
+	<xs:attribute name="cpu_count" type="xs:nonNegativeInteger"></xs:attribute>
 </xs:complexType>
 
 <xs:element name="comment" type="comment-type"></xs:element>
@@ -161,6 +169,7 @@
 	<xs:attribute name="irq" type="hundredth-type"></xs:attribute>
 	<xs:attribute name="soft" type="hundredth-type"></xs:attribute>
 	<xs:attribute name="guest" type="hundredth-type"></xs:attribute>
+	<xs:attribute name="gnice" type="hundredth-type"></xs:attribute>
 	<xs:attribute name="idle" type="hundredth-type"></xs:attribute>
 </xs:complexType>
 
@@ -194,7 +203,7 @@
 
 <xs:element name="irq" type="irq-type"></xs:element>
 <xs:complexType name="irq-type">
-	<xs:attribute name="intr" type="xs:int"></xs:attribute>
+	<xs:attribute name="intr" type="xs:string"></xs:attribute>
 	<xs:attribute name="value" type="hundredth-type"></xs:attribute>
 </xs:complexType>
 
@@ -249,7 +258,7 @@
 <xs:element name="memory" type="memory-type"></xs:element>
 <xs:complexType name="memory-type">
 	<xs:sequence>
-		<xs:element name="memfree" type="xs:negativeInteger"></xs:element>
+		<xs:element name="memfree" type="xs:nonNegativeInteger"></xs:element>
 		<xs:element name="memused" type="xs:nonNegativeInteger"></xs:element>
 		<xs:element name="memused-percent" type="hundredth-type"></xs:element>
 		<xs:element name="buffers" type="xs:nonNegativeInteger"></xs:element>
@@ -258,6 +267,7 @@
 		<xs:element name="commit-percent" type="hundredth-type"></xs:element>
 		<xs:element name="active" type="xs:nonNegativeInteger"></xs:element>
 		<xs:element name="inactive" type="xs:nonNegativeInteger"></xs:element>
+		<xs:element name="dirty" type="xs:nonNegativeInteger"></xs:element>
 		<xs:element name="swpfree" type="xs:nonNegativeInteger"></xs:element>
 		<xs:element name="swpused" type="xs:nonNegativeInteger"></xs:element>
 		<xs:element name="swpused-percent" type="hundredth-type"></xs:element>
@@ -378,6 +388,7 @@
 	<xs:attribute name="rxcmp" type="hundredth-type"></xs:attribute>
 	<xs:attribute name="txcmp" type="hundredth-type"></xs:attribute>
 	<xs:attribute name="rxmcst" type="hundredth-type"></xs:attribute>
+	<xs:attribute name="ifutil-percent" type="hundredth-type"></xs:attribute>
 </xs:complexType>
 
 <xs:element name="net-edev" type="net-edev-type"></xs:element>
@@ -719,6 +730,25 @@
 	<xs:attribute name="maxpower" type="xs:nonNegativeInteger"></xs:attribute>
 	<xs:attribute name="manufact" type="xs:string"></xs:attribute>
 	<xs:attribute name="product" type="xs:string"></xs:attribute>
+</xs:complexType>
+
+<xs:element name="filesystems" type="filesystems-type"></xs:element>
+<xs:complexType name="filesystems-type">
+	<xs:sequence>
+		<xs:element name="filesystem" type="filesystem-type"></xs:element>
+	</xs:sequence>
+</xs:complexType>
+
+<xs:element name="filesystem" type="filesystem-type"></xs:element>
+<xs:complexType name="filesystem-type">
+	<xs:attribute name="fsname" type="xs:string"></xs:attribute>
+	<xs:attribute name="MBfsfree" type="xs:nonNegativeInteger"></xs:attribute>
+	<xs:attribute name="MBfsused" type="xs:nonNegativeInteger"></xs:attribute>
+	<xs:attribute name="fsused-percent" type="hundredth-type"></xs:attribute>
+	<xs:attribute name="ufsused-percent" type="hundredth-type"></xs:attribute>
+	<xs:attribute name="Ifree" type="xs:nonNegativeInteger"></xs:attribute>
+	<xs:attribute name="Iused" type="xs:nonNegativeInteger"></xs:attribute>
+	<xs:attribute name="Iused-percent" type="hundredth-type"></xs:attribute>
 </xs:complexType>
 
 </xs:schema>

@@ -1,10 +1,8 @@
 #!/usr/bin/make -f
 
-export DH_ALWAYS_EXCLUDE=CVS:.svn
-
 DH_AUTO_OPTIONS := -v -Sautoconf --parallel
 DESTDIR         := $(CURDIR)/debian/tmp
-CFLAGS          := $(shell dpkg-buildflags --get CPPFLAGS) $(shell dpkg-buildflags --get CFLAGS)
+CFLAGS          := $(shell dpkg-buildflags --get CPPFLAGS) $(shell dpkg-buildflags --get CFLAGS) $(shell getconf LFS_CFLAGS)
 LDFLAGS         := $(shell dpkg-buildflags --get LDFLAGS)
 
 
@@ -39,18 +37,18 @@ override_dh_installchangelogs:
 	dh_installchangelogs -i
 
 override_dh_installinit:
-	dh_installinit --no-start -- start 20 2 3 4 5 .
+	dh_installinit --no-start
 
 override_dh_compress:
 	set -ex; for p in $(shell dh_listpackages) ; do sh debian/fix.sh $$p; done
 	dh_compress
 
 debian/configure.stamp:
-	rm -f .pc/.*unapply # see bug#649521
 	dh_auto_configure $(DH_AUTO_OPTIONS) --         \
 	            --enable-yesterday                  \
 	            --disable-man-group                 \
 	            --disable-compress-manpg            \
+	            --enable-copy-only                  \
 	            sa_lib_dir=/usr/lib/sysstat         \
 	            sa_dir=/var/log/sysstat             \
 	            conf_dir=/etc/sysstat               \

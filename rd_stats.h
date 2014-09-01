@@ -1,6 +1,6 @@
 /*
  * rd_stats.h: Include file used to read system statistics
- * (C) 1999-2011 by Sebastien Godard (sysstat <at> orange.fr)
+ * (C) 1999-2014 by Sebastien Godard (sysstat <at> orange.fr)
  */
 
 #ifndef _RD_STATS_H
@@ -27,15 +27,18 @@
 #define MAX_MANUF_LEN	24
 /* Maximum length of USB product string */
 #define MAX_PROD_LEN	48
+/* Maximum length of filesystem name */
+#define MAX_FS_LEN	72
 
-#define CNT_DEV		0
 #define CNT_PART	1
 #define CNT_ALL_DEV	0
 #define CNT_USED_DEV	1
 
-#define READ_PROC_STAT		0
-#define READ_DISKSTATS		1
-#define READ_PPARTITIONS	2
+#define K_DUPLEX_HALF	"half"
+#define K_DUPLEX_FULL	"full"
+
+#define C_DUPLEX_HALF	1
+#define C_DUPLEX_FULL	2
 
 /*
  ***************************************************************************
@@ -60,6 +63,9 @@
 #define NET_SNMP	"/proc/net/snmp"
 #define NET_SNMP6	"/proc/net/snmp6"
 #define CPUINFO		"/proc/cpuinfo"
+#define MTAB		"/etc/mtab"
+#define IF_DUPLEX	"/sys/class/net/%s/duplex"
+#define IF_SPEED	"/sys/class/net/%s/speed"
 
 
 /*
@@ -74,15 +80,16 @@
  * Following structures are for each individual CPU (0, 1, etc.)
  */
 struct stats_cpu {
-	unsigned long long cpu_user	__attribute__ ((aligned (16)));
-	unsigned long long cpu_nice	__attribute__ ((aligned (16)));
-	unsigned long long cpu_sys	__attribute__ ((aligned (16)));
-	unsigned long long cpu_idle	__attribute__ ((aligned (16)));
-	unsigned long long cpu_iowait	__attribute__ ((aligned (16)));
-	unsigned long long cpu_steal	__attribute__ ((aligned (16)));
-	unsigned long long cpu_hardirq	__attribute__ ((aligned (16)));
-	unsigned long long cpu_softirq	__attribute__ ((aligned (16)));
-	unsigned long long cpu_guest	__attribute__ ((aligned (16)));
+	unsigned long long cpu_user		__attribute__ ((aligned (16)));
+	unsigned long long cpu_nice		__attribute__ ((aligned (16)));
+	unsigned long long cpu_sys		__attribute__ ((aligned (16)));
+	unsigned long long cpu_idle		__attribute__ ((aligned (16)));
+	unsigned long long cpu_iowait		__attribute__ ((aligned (16)));
+	unsigned long long cpu_steal		__attribute__ ((aligned (16)));
+	unsigned long long cpu_hardirq		__attribute__ ((aligned (16)));
+	unsigned long long cpu_softirq		__attribute__ ((aligned (16)));
+	unsigned long long cpu_guest		__attribute__ ((aligned (16)));
+	unsigned long long cpu_guest_nice	__attribute__ ((aligned (16)));
 };
 
 #define STATS_CPU_SIZE	(sizeof(struct stats_cpu))
@@ -137,11 +144,11 @@ struct stats_paging {
 
 /* Structure for I/O and transfer rate statistics */
 struct stats_io {
-	unsigned int  dk_drive			__attribute__ ((aligned (4)));
-	unsigned int  dk_drive_rio		__attribute__ ((packed));
-	unsigned int  dk_drive_wio		__attribute__ ((packed));
-	unsigned int  dk_drive_rblk		__attribute__ ((packed));
-	unsigned int  dk_drive_wblk		__attribute__ ((packed));
+	unsigned long long dk_drive		__attribute__ ((aligned (16)));
+	unsigned long long dk_drive_rio		__attribute__ ((packed));
+	unsigned long long dk_drive_wio		__attribute__ ((packed));
+	unsigned long long dk_drive_rblk	__attribute__ ((packed));
+	unsigned long long dk_drive_wblk	__attribute__ ((packed));
 };
 
 #define STATS_IO_SIZE	(sizeof(struct stats_io))
@@ -158,6 +165,7 @@ struct stats_memory {
 	unsigned long comkb	__attribute__ ((aligned (8)));
 	unsigned long activekb	__attribute__ ((aligned (8)));
 	unsigned long inactkb	__attribute__ ((aligned (8)));
+	unsigned long dirtykb	__attribute__ ((aligned (8)));
 };
 
 #define STATS_MEMORY_SIZE	(sizeof(struct stats_memory))
@@ -203,45 +211,47 @@ struct stats_serial {
 
 /* Structure for block devices statistics */
 struct stats_disk {
-	unsigned long long rd_sect	__attribute__ ((aligned (16)));
-	unsigned long long wr_sect	__attribute__ ((aligned (16)));
-	unsigned long rd_ticks		__attribute__ ((aligned (16)));
-	unsigned long wr_ticks		__attribute__ ((aligned (8)));
-	unsigned long tot_ticks		__attribute__ ((aligned (8)));
-	unsigned long rq_ticks		__attribute__ ((aligned (8)));
-	unsigned long nr_ios		__attribute__ ((aligned (8)));
-	unsigned int  major		__attribute__ ((aligned (8)));
-	unsigned int  minor		__attribute__ ((packed));
+	unsigned long long nr_ios	__attribute__ ((aligned (16)));
+	unsigned long rd_sect		__attribute__ ((aligned (16)));
+	unsigned long wr_sect		__attribute__ ((aligned (8)));
+	unsigned int rd_ticks		__attribute__ ((aligned (8)));
+	unsigned int wr_ticks		__attribute__ ((packed));
+	unsigned int tot_ticks		__attribute__ ((packed));
+	unsigned int rq_ticks		__attribute__ ((packed));
+	unsigned int major		__attribute__ ((packed));
+	unsigned int minor		__attribute__ ((packed));
 };
 
 #define STATS_DISK_SIZE	(sizeof(struct stats_disk))
 
 /* Structure for network interfaces statistics */
 struct stats_net_dev {
-	unsigned long rx_packets		__attribute__ ((aligned (8)));
-	unsigned long tx_packets		__attribute__ ((aligned (8)));
-	unsigned long rx_bytes			__attribute__ ((aligned (8)));
-	unsigned long tx_bytes			__attribute__ ((aligned (8)));
-	unsigned long rx_compressed		__attribute__ ((aligned (8)));
-	unsigned long tx_compressed		__attribute__ ((aligned (8)));
-	unsigned long multicast			__attribute__ ((aligned (8)));
-	char	      interface[MAX_IFACE_LEN]	__attribute__ ((aligned (8)));
+	unsigned long long rx_packets		__attribute__ ((aligned (16)));
+	unsigned long long tx_packets		__attribute__ ((aligned (16)));
+	unsigned long long rx_bytes		__attribute__ ((aligned (16)));
+	unsigned long long tx_bytes		__attribute__ ((aligned (16)));
+	unsigned long long rx_compressed	__attribute__ ((aligned (16)));
+	unsigned long long tx_compressed	__attribute__ ((aligned (16)));
+	unsigned long long multicast		__attribute__ ((aligned (16)));
+	unsigned int       speed		__attribute__ ((aligned (16)));
+	char 	 interface[MAX_IFACE_LEN]	__attribute__ ((aligned (4)));
+	char	 duplex;
 };
 
 #define STATS_NET_DEV_SIZE	(sizeof(struct stats_net_dev))
 
 /* Structure for network interface errors statistics */
 struct stats_net_edev {
-	unsigned long collisions		__attribute__ ((aligned (8)));
-	unsigned long rx_errors			__attribute__ ((aligned (8)));
-	unsigned long tx_errors			__attribute__ ((aligned (8)));
-	unsigned long rx_dropped		__attribute__ ((aligned (8)));
-	unsigned long tx_dropped		__attribute__ ((aligned (8)));
-	unsigned long rx_fifo_errors		__attribute__ ((aligned (8)));
-	unsigned long tx_fifo_errors		__attribute__ ((aligned (8)));
-	unsigned long rx_frame_errors		__attribute__ ((aligned (8)));
-	unsigned long tx_carrier_errors		__attribute__ ((aligned (8)));
-	char	      interface[MAX_IFACE_LEN]	__attribute__ ((aligned (8)));
+	unsigned long long collisions		__attribute__ ((aligned (16)));
+	unsigned long long rx_errors		__attribute__ ((aligned (16)));
+	unsigned long long tx_errors		__attribute__ ((aligned (16)));
+	unsigned long long rx_dropped		__attribute__ ((aligned (16)));
+	unsigned long long tx_dropped		__attribute__ ((aligned (16)));
+	unsigned long long rx_fifo_errors	__attribute__ ((aligned (16)));
+	unsigned long long tx_fifo_errors	__attribute__ ((aligned (16)));
+	unsigned long long rx_frame_errors	__attribute__ ((aligned (16)));
+	unsigned long long tx_carrier_errors	__attribute__ ((aligned (16)));
+	char	      interface[MAX_IFACE_LEN]	__attribute__ ((aligned (16)));
 };
 
 #define STATS_NET_EDEV_SIZE	(sizeof(struct stats_net_edev))
@@ -289,28 +299,28 @@ struct stats_net_sock {
 
 /* Structure for IP statistics */
 struct stats_net_ip {
-	unsigned long InReceives	__attribute__ ((aligned (8)));
-	unsigned long ForwDatagrams	__attribute__ ((aligned (8)));
-	unsigned long InDelivers	__attribute__ ((aligned (8)));
-	unsigned long OutRequests	__attribute__ ((aligned (8)));
-	unsigned long ReasmReqds	__attribute__ ((aligned (8)));
-	unsigned long ReasmOKs		__attribute__ ((aligned (8)));
-	unsigned long FragOKs		__attribute__ ((aligned (8)));
-	unsigned long FragCreates	__attribute__ ((aligned (8)));
+	unsigned long long InReceives		__attribute__ ((aligned (16)));
+	unsigned long long ForwDatagrams	__attribute__ ((aligned (16)));
+	unsigned long long InDelivers		__attribute__ ((aligned (16)));
+	unsigned long long OutRequests		__attribute__ ((aligned (16)));
+	unsigned long long ReasmReqds		__attribute__ ((aligned (16)));
+	unsigned long long ReasmOKs		__attribute__ ((aligned (16)));
+	unsigned long long FragOKs		__attribute__ ((aligned (16)));
+	unsigned long long FragCreates		__attribute__ ((aligned (16)));
 };
 
 #define STATS_NET_IP_SIZE	(sizeof(struct stats_net_ip))
 
 /* Structure for IP errors statistics */
 struct stats_net_eip {
-	unsigned long InHdrErrors	__attribute__ ((aligned (8)));
-	unsigned long InAddrErrors	__attribute__ ((aligned (8)));
-	unsigned long InUnknownProtos	__attribute__ ((aligned (8)));
-	unsigned long InDiscards	__attribute__ ((aligned (8)));
-	unsigned long OutDiscards	__attribute__ ((aligned (8)));
-	unsigned long OutNoRoutes	__attribute__ ((aligned (8)));
-	unsigned long ReasmFails	__attribute__ ((aligned (8)));
-	unsigned long FragFails		__attribute__ ((aligned (8)));
+	unsigned long long InHdrErrors		__attribute__ ((aligned (16)));
+	unsigned long long InAddrErrors		__attribute__ ((aligned (16)));
+	unsigned long long InUnknownProtos	__attribute__ ((aligned (16)));
+	unsigned long long InDiscards		__attribute__ ((aligned (16)));
+	unsigned long long OutDiscards		__attribute__ ((aligned (16)));
+	unsigned long long OutNoRoutes		__attribute__ ((aligned (16)));
+	unsigned long long ReasmFails		__attribute__ ((aligned (16)));
+	unsigned long long FragFails		__attribute__ ((aligned (16)));
 };
 
 #define STATS_NET_EIP_SIZE	(sizeof(struct stats_net_eip))
@@ -386,33 +396,33 @@ struct stats_net_udp {
 
 /* Structure for IPv6 statistics */
 struct stats_net_ip6 {
-	unsigned long InReceives6	__attribute__ ((aligned (8)));
-	unsigned long OutForwDatagrams6	__attribute__ ((aligned (8)));
-	unsigned long InDelivers6	__attribute__ ((aligned (8)));
-	unsigned long OutRequests6	__attribute__ ((aligned (8)));
-	unsigned long ReasmReqds6	__attribute__ ((aligned (8)));
-	unsigned long ReasmOKs6		__attribute__ ((aligned (8)));
-	unsigned long InMcastPkts6	__attribute__ ((aligned (8)));
-	unsigned long OutMcastPkts6	__attribute__ ((aligned (8)));
-	unsigned long FragOKs6		__attribute__ ((aligned (8)));
-	unsigned long FragCreates6	__attribute__ ((aligned (8)));
+	unsigned long long InReceives6		__attribute__ ((aligned (16)));
+	unsigned long long OutForwDatagrams6	__attribute__ ((aligned (16)));
+	unsigned long long InDelivers6		__attribute__ ((aligned (16)));
+	unsigned long long OutRequests6		__attribute__ ((aligned (16)));
+	unsigned long long ReasmReqds6		__attribute__ ((aligned (16)));
+	unsigned long long ReasmOKs6		__attribute__ ((aligned (16)));
+	unsigned long long InMcastPkts6		__attribute__ ((aligned (16)));
+	unsigned long long OutMcastPkts6	__attribute__ ((aligned (16)));
+	unsigned long long FragOKs6		__attribute__ ((aligned (16)));
+	unsigned long long FragCreates6		__attribute__ ((aligned (16)));
 };
 
 #define STATS_NET_IP6_SIZE	(sizeof(struct stats_net_ip6))
 
 /* Structure for IPv6 errors statistics */
 struct stats_net_eip6 {
-	unsigned long InHdrErrors6	__attribute__ ((aligned (8)));
-	unsigned long InAddrErrors6	__attribute__ ((aligned (8)));
-	unsigned long InUnknownProtos6	__attribute__ ((aligned (8)));
-	unsigned long InTooBigErrors6	__attribute__ ((aligned (8)));
-	unsigned long InDiscards6	__attribute__ ((aligned (8)));
-	unsigned long OutDiscards6	__attribute__ ((aligned (8)));
-	unsigned long InNoRoutes6	__attribute__ ((aligned (8)));
-	unsigned long OutNoRoutes6	__attribute__ ((aligned (8)));
-	unsigned long ReasmFails6	__attribute__ ((aligned (8)));
-	unsigned long FragFails6	__attribute__ ((aligned (8)));
-	unsigned long InTruncatedPkts6	__attribute__ ((aligned (8)));
+	unsigned long long InHdrErrors6		__attribute__ ((aligned (16)));
+	unsigned long long InAddrErrors6	__attribute__ ((aligned (16)));
+	unsigned long long InUnknownProtos6	__attribute__ ((aligned (16)));
+	unsigned long long InTooBigErrors6	__attribute__ ((aligned (16)));
+	unsigned long long InDiscards6		__attribute__ ((aligned (16)));
+	unsigned long long OutDiscards6		__attribute__ ((aligned (16)));
+	unsigned long long InNoRoutes6		__attribute__ ((aligned (16)));
+	unsigned long long OutNoRoutes6		__attribute__ ((aligned (16)));
+	unsigned long long ReasmFails6		__attribute__ ((aligned (16)));
+	unsigned long long FragFails6		__attribute__ ((aligned (16)));
+	unsigned long long InTruncatedPkts6	__attribute__ ((aligned (16)));
 };
 
 #define STATS_NET_EIP6_SIZE	(sizeof(struct stats_net_eip6))
@@ -522,6 +532,18 @@ struct stats_pwr_usb {
 
 #define STATS_PWR_USB_SIZE	(sizeof(struct stats_pwr_usb))
 
+/* Structure for filesystems statistics */
+struct stats_filesystem {
+	unsigned long long f_blocks		__attribute__ ((aligned (16)));
+	unsigned long long f_bfree		__attribute__ ((aligned (16)));
+	unsigned long long f_bavail		__attribute__ ((aligned (16)));
+	unsigned long long f_files		__attribute__ ((aligned (16)));
+	unsigned long long f_ffree		__attribute__ ((aligned (16)));
+	char 		   fs_name[MAX_FS_LEN]	__attribute__ ((aligned (16)));
+};
+
+#define STATS_FILESYSTEM_SIZE	(sizeof(struct stats_filesystem))
+
 /*
  ***************************************************************************
  * Prototypes for functions used to read system statistics
@@ -532,13 +554,18 @@ extern void
 	read_stat_cpu(struct stats_cpu *, int,
 		      unsigned long long *, unsigned long long *);
 extern void
-	read_stat_pcsw(struct stats_pcsw *);
-extern void
 	read_stat_irq(struct stats_irq *, int);
 extern void
-	read_loadavg(struct stats_queue *);
-extern void
 	read_meminfo(struct stats_memory *);
+extern void
+	read_uptime(unsigned long long *);
+
+extern void
+	oct2chr(char *);
+extern void
+	read_stat_pcsw(struct stats_pcsw *);
+extern void
+	read_loadavg(struct stats_queue *);
 extern void
 	read_vmstat_swap(struct stats_swap *);
 extern void
@@ -551,8 +578,10 @@ extern void
 	read_tty_driver_serial(struct stats_serial *, int);
 extern void
 	read_kernel_tables(struct stats_ktables *);
-extern void
+extern int
 	read_net_dev(struct stats_net_dev *, int);
+extern void
+	read_if_info(struct stats_net_dev *, int);
 extern void
 	read_net_edev(struct stats_net_edev *, int);
 extern void
@@ -576,8 +605,6 @@ extern void
 extern void
 	read_net_udp(struct stats_net_udp *);
 extern void
-	read_uptime(unsigned long long *);
-extern void
 	read_net_sock6(struct stats_net_sock6 *);
 extern void
 	read_net_ip6(struct stats_net_ip6 *);
@@ -597,30 +624,7 @@ extern void
 	read_time_in_state(struct stats_pwr_wghfreq *, int, int);
 extern void
 	read_bus_usb_dev(struct stats_pwr_usb *, int);
-
-/*
- ***************************************************************************
- * Prototypes for functions used to count number of items
- ***************************************************************************
- */
-
-extern int
-	get_irq_nr(void);
-extern int
-	get_serial_nr(void);
-extern int
-	get_iface_nr(void);
-extern int
-	get_diskstats_dev_nr(int, int);
-extern int
-	get_disk_nr(unsigned int);
-extern int
-	get_cpu_nr(unsigned int);
-extern int
-	get_irqcpu_nr(char *, int, int);
-extern int
-	get_freq_nr(void);
-extern int
-	get_usb_nr(void);
+extern void
+	read_filesystem(struct stats_filesystem *, int);
 
 #endif /* _RD_STATS_H */

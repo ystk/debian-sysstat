@@ -1,6 +1,6 @@
 /*
  * activity.c: Define system activities available for sar/sadc.
- * (C) 1999-2011 by Sebastien GODARD (sysstat <at> orange.fr)
+ * (C) 1999-2014 by Sebastien GODARD (sysstat <at> orange.fr)
  *
  ***************************************************************************
  * This program is free software; you can redistribute it and/or modify it *
@@ -69,7 +69,7 @@ struct act_bitmap irq_bitmap = {
  */
 struct activity cpu_act = {
 	.id		= A_CPU,
-	.options	= AO_COLLECTED + AO_REMANENT + AO_GLOBAL_ITV + AO_MULTIPLE_OUTPUTS,
+	.options	= AO_COLLECTED + AO_VOLATILE + AO_GLOBAL_ITV + AO_MULTIPLE_OUTPUTS,
 	.magic		= ACTIVITY_MAGIC_BASE,
 	.group		= G_DEFAULT,
 #ifdef SOURCE_SADC
@@ -86,7 +86,7 @@ struct activity cpu_act = {
 	.f_xml_print	= xml_print_cpu_stats,
 	.f_json_print	= json_print_cpu_stats,
 	.hdr_line	= "CPU;%user;%nice;%system;%iowait;%steal;%idle|"
-		          "CPU;%usr;%nice;%sys;%iowait;%steal;%irq;%soft;%guest;%idle",
+		          "CPU;%usr;%nice;%sys;%iowait;%steal;%irq;%soft;%guest;%gnice;%idle",
 	.name		= "A_CPU",
 #endif
 	.nr		= -1,
@@ -227,7 +227,7 @@ struct activity paging_act = {
 struct activity io_act = {
 	.id		= A_IO,
 	.options	= AO_COLLECTED,
-	.magic		= ACTIVITY_MAGIC_BASE,
+	.magic		= ACTIVITY_MAGIC_BASE + 1,
 	.group		= G_DEFAULT,
 #ifdef SOURCE_SADC
 	.f_count	= NULL,
@@ -274,7 +274,7 @@ struct activity memory_act = {
 	.f_xml_print	= xml_print_memory_stats,
 	.f_json_print	= json_print_memory_stats,
 	.hdr_line	= "frmpg/s;bufpg/s;campg/s|"
-		          "kbmemfree;kbmemused;%memused;kbbuffers;kbcached;kbcommit;%commit;kbactive;kbinact|"
+		          "kbmemfree;kbmemused;%memused;kbbuffers;kbcached;kbcommit;%commit;kbactive;kbinact;kbdirty|"
 		          "kbswpfree;kbswpused;%swpused;kbswpcad;%swpcad",
 	.name		= "A_MEMORY",
 #endif
@@ -384,7 +384,7 @@ struct activity serial_act = {
 struct activity disk_act = {
 	.id		= A_DISK,
 	.options	= AO_NULL,
-	.magic		= ACTIVITY_MAGIC_BASE,
+	.magic		= ACTIVITY_MAGIC_BASE + 1,
 	.group		= G_DISK,
 #ifdef SOURCE_SADC
 	.f_count	= wrap_get_disk_nr,
@@ -415,7 +415,7 @@ struct activity disk_act = {
 struct activity net_dev_act = {
 	.id		= A_NET_DEV,
 	.options	= AO_COLLECTED,
-	.magic		= ACTIVITY_MAGIC_BASE,
+	.magic		= ACTIVITY_MAGIC_BASE + 2,
 	.group		= G_DEFAULT,
 #ifdef SOURCE_SADC
 	.f_count	= wrap_get_iface_nr,
@@ -430,7 +430,7 @@ struct activity net_dev_act = {
 	.f_render	= render_net_dev_stats,
 	.f_xml_print	= xml_print_net_dev_stats,
 	.f_json_print	= json_print_net_dev_stats,
-	.hdr_line	= "IFACE;rxpck/s;txpck/s;rxkB/s;txkB/s;rxcmp/s;txcmp/s;rxmcst/s",
+	.hdr_line	= "IFACE;rxpck/s;txpck/s;rxkB/s;txkB/s;rxcmp/s;txcmp/s;rxmcst/s;%ifutil",
 	.name		= "A_NET_DEV",
 #endif
 	.nr		= -1,
@@ -446,7 +446,7 @@ struct activity net_dev_act = {
 struct activity net_edev_act = {
 	.id		= A_NET_EDEV,
 	.options	= AO_COLLECTED,
-	.magic		= ACTIVITY_MAGIC_BASE,
+	.magic		= ACTIVITY_MAGIC_BASE + 1,
 	.group		= G_DEFAULT,
 #ifdef SOURCE_SADC
 	.f_count	= wrap_get_iface_nr,
@@ -572,7 +572,7 @@ struct activity net_sock_act = {
 struct activity net_ip_act = {
 	.id		= A_NET_IP,
 	.options	= AO_NULL,
-	.magic		= ACTIVITY_MAGIC_BASE,
+	.magic		= ACTIVITY_MAGIC_BASE + 1,
 	.group		= G_SNMP,
 #ifdef SOURCE_SADC
 	.f_count	= NULL,
@@ -603,7 +603,7 @@ struct activity net_ip_act = {
 struct activity net_eip_act = {
 	.id		= A_NET_EIP,
 	.options	= AO_NULL,
-	.magic		= ACTIVITY_MAGIC_BASE,
+	.magic		= ACTIVITY_MAGIC_BASE + 1,
 	.group		= G_SNMP,
 #ifdef SOURCE_SADC
 	.f_count	= NULL,
@@ -822,7 +822,7 @@ struct activity net_sock6_act = {
 struct activity net_ip6_act = {
 	.id		= A_NET_IP6,
 	.options	= AO_NULL,
-	.magic		= ACTIVITY_MAGIC_BASE,
+	.magic		= ACTIVITY_MAGIC_BASE + 1,
 	.group		= G_IPV6,
 #ifdef SOURCE_SADC
 	.f_count	= NULL,
@@ -854,7 +854,7 @@ struct activity net_ip6_act = {
 struct activity net_eip6_act = {
 	.id		= A_NET_EIP6,
 	.options	= AO_NULL,
-	.magic		= ACTIVITY_MAGIC_BASE,
+	.magic		= ACTIVITY_MAGIC_BASE + 1,
 	.group		= G_IPV6,
 #ifdef SOURCE_SADC
 	.f_count	= NULL,
@@ -981,7 +981,7 @@ struct activity net_udp6_act = {
 /* CPU frequency */
 struct activity pwr_cpufreq_act = {
 	.id		= A_PWR_CPUFREQ,
-	.options	= AO_NULL,
+	.options	= AO_VOLATILE,
 	.magic		= ACTIVITY_MAGIC_BASE,
 	.group		= G_POWER,
 #ifdef SOURCE_SADC
@@ -1136,7 +1136,7 @@ struct activity huge_act = {
 /* CPU weighted frequency */
 struct activity pwr_wghfreq_act = {
 	.id		= A_PWR_WGHFREQ,
-	.options	= AO_NULL,
+	.options	= AO_VOLATILE,
 	.magic		= ACTIVITY_MAGIC_BASE,
 	.group		= G_POWER,
 #ifdef SOURCE_SADC
@@ -1195,6 +1195,37 @@ struct activity pwr_usb_act = {
 	.bitmap		= NULL
 };
 
+/* Filesystem usage activity */
+struct activity filesystem_act = {
+	.id		= A_FILESYSTEM,
+	.options	= AO_NULL,
+	.magic		= ACTIVITY_MAGIC_BASE,
+	.group		= G_XDISK,
+#ifdef SOURCE_SADC
+	.f_count	= wrap_get_filesystem_nr,
+	.f_count2	= NULL,
+	.f_read		= wrap_read_filesystem,
+#endif
+#ifdef SOURCE_SAR
+	.f_print	= print_filesystem_stats,
+	.f_print_avg	= print_avg_filesystem_stats,
+#endif
+#ifdef SOURCE_SADF
+	.f_render	= render_filesystem_stats,
+	.f_xml_print	= xml_print_filesystem_stats,
+	.f_json_print	= json_print_filesystem_stats,
+	.hdr_line	= "FILESYSTEM;MBfsfree;MBfsused;%fsused;%ufsused;Ifree;Iused;%Iused",
+	.name		= "A_FILESYSTEM",
+#endif
+	.nr		= -1,
+	.nr2		= 1,
+	.fsize		= STATS_FILESYSTEM_SIZE,
+	.msize		= STATS_FILESYSTEM_SIZE,
+	.opt_flags	= 0,
+	.buf		= {NULL, NULL, NULL},
+	.bitmap		= NULL
+};
+
 
 /*
  * Array of activities.
@@ -1239,6 +1270,7 @@ struct activity *act[NR_ACT] = {
 	&pwr_temp_act,
 	&pwr_in_act,
 	&pwr_wghfreq_act,
-	&pwr_usb_act		/* AO_CLOSE_MARKUP */
+	&pwr_usb_act,		/* AO_CLOSE_MARKUP */
 	/* </power-management> */
+	&filesystem_act
 };

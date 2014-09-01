@@ -1,6 +1,6 @@
 /*
  * sadf: System activity data formatter
- * (C) 1999-2011 by Sebastien Godard (sysstat <at> orange.fr)
+ * (C) 1999-2014 by Sebastien Godard (sysstat <at> orange.fr)
  */
 
 #ifndef _SADF_H
@@ -9,12 +9,16 @@
 #include "sa.h"
 
 /* DTD version for XML output */
-#define XML_DTD_VERSION	"2.13"
+#define XML_DTD_VERSION	"2.19"
 
 /* Possible actions for functions used to display reports */
 #define F_BEGIN	0x01
 #define F_MAIN	0x02
 #define F_END	0x04
+
+/* Various constants */
+#define DO_SAVE		0
+#define DO_RESTORE	1
 
 /*
  ***************************************************************************
@@ -39,7 +43,6 @@
  */
 
 /* Format options */
-#define FO_NULL			0x00
 
 /*
  * Indicate that all statistics data for one activity should be displayed before
@@ -71,9 +74,9 @@
 
 /*
  * Indicate that timestamp can be displayed in local time instead of UTC
- * if option -t has been used.
+ * if option -T or -t has been used.
  */
-#define FO_TRUE_TIME		0x08
+#define FO_LOCAL_TIME		0x08
 
 /*
  * Indicate that all activities will be displayed horizontally
@@ -83,7 +86,7 @@
 
 /*
  * Indicate that the timestamp can be displayed in seconds since the epoch
- * if option -T has been used.
+ * if option -U has been used.
  */
 #define FO_SEC_EPOCH		0x20
 
@@ -96,7 +99,7 @@
 #define DISPLAY_GROUPED_STATS(m)	(((m) & FO_GROUPED_STATS)	== FO_GROUPED_STATS)
 #define ACCEPT_HEADER_ONLY(m)		(((m) & FO_HEADER_ONLY)		== FO_HEADER_ONLY)
 #define ACCEPT_BAD_FILE_FORMAT(m)	(((m) & FO_BAD_FILE_FORMAT)	== FO_BAD_FILE_FORMAT)
-#define ACCEPT_TRUE_TIME(m)		(((m) & FO_TRUE_TIME)		== FO_TRUE_TIME)
+#define ACCEPT_LOCAL_TIME(m)		(((m) & FO_LOCAL_TIME)		== FO_LOCAL_TIME)
 #define ACCEPT_HORIZONTALLY(m)		(((m) & FO_HORIZONTALLY)	== FO_HORIZONTALLY)
 #define ACCEPT_SEC_EPOCH(m)		(((m) & FO_SEC_EPOCH)		== FO_SEC_EPOCH)
 #define DISPLAY_FIELD_LIST(m)		(((m) & FO_FIELD_LIST)		== FO_FIELD_LIST)
@@ -164,7 +167,8 @@ struct report_format {
 	/*
 	 * This function displays the restart messages.
 	 */
-	__printf_funct_t (*f_restart) (int *, int, char *, char *, int, struct file_header *);
+	__printf_funct_t (*f_restart) (int *, int, char *, char *, int, struct file_header *,
+				       unsigned int);
 	/*
 	 * This function displays the comments.
 	 */
@@ -186,13 +190,13 @@ extern void
  * Prototypes used to display restart messages
  */
 __printf_funct_t
-	print_db_restart(int *, int, char *, char *, int, struct file_header *);
+	print_db_restart(int *, int, char *, char *, int, struct file_header *, unsigned int);
 __printf_funct_t
-	print_ppc_restart(int *, int, char *, char *, int, struct file_header *);
+	print_ppc_restart(int *, int, char *, char *, int, struct file_header *, unsigned int);
 __printf_funct_t
-	print_xml_restart(int *, int, char *, char *, int, struct file_header *);
+	print_xml_restart(int *, int, char *, char *, int, struct file_header *, unsigned int);
 __printf_funct_t
-	print_json_restart(int *, int, char *, char *, int, struct file_header *);
+	print_json_restart(int *, int, char *, char *, int, struct file_header *, unsigned int);
 
 /*
  * Prototypes used to display comments
