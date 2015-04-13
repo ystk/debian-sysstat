@@ -1,3 +1,22 @@
+sysstat (11.0.1-1) unstable; urgency=medium
+
+  * New upstream (stable) version.
+  * Update debian/watch to prefer "xz" tarballs.
+  * Standards-Version: 3.9.6 (no changes).
+
+ -- Robert Luberda <robert@debian.org>  Fri, 26 Sep 2014 10:03:15 +0200
+
+sysstat (11.0.0-1) unstable; urgency=medium
+
+  * New upstream version:
+    + The standard daily data files may now be named saYYYYMMDD instead
+      of saDD, especially when HISTORY variable is greater than 28.
+  * Update patches for the new version.
+  * Add 12-isag-new-format-support.patch to handle the newly introduced
+    saYYYYMMDD log files format.
+
+ -- Robert Luberda <robert@debian.org>  Fri, 29 Aug 2014 08:33:19 +0200
+
 sysstat (10.3.1-1) unstable; urgency=medium
 
   * New upstream version (development):
