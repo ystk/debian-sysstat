@@ -27,7 +27,7 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/vfs.h>
+#include <sys/statvfs.h>
 #include <unistd.h>
 
 #include "common.h"
@@ -463,7 +463,7 @@ int get_filesystem_nr(void)
 	FILE *fp;
 	char line[256], fs_name[MAX_FS_LEN], mountp[128];
 	int fs = 0;
-	struct statfs buf;
+	struct statvfs buf;
 
 	if ((fp = fopen(MTAB, "r")) == NULL)
 		/* File non-existent */
@@ -472,17 +472,17 @@ int get_filesystem_nr(void)
 	/* Get current filesystem */
 	while (fgets(line, sizeof(line), fp) != NULL) {
 		if (line[0] == '/') {
-			
+
 			/* Read filesystem name and mount point */
 			sscanf(line, "%71s %127s", fs_name, mountp);
-			
+
 			/* Replace octal codes */
 			oct2chr(mountp);
-			
+
 			/* Check that total size is not null */
-			if (statfs(mountp, &buf) < 0)
+			if (statvfs(mountp, &buf) < 0)
 				continue;
-			
+
 			if (buf.f_blocks) {
 				fs++;
 			}
