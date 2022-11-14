@@ -1,3 +1,12 @@
+sysstat (11.0.1-1+deb8u1) jessie-security; urgency=high
+
+  * Non-maintainer upload by the ELTS team.
+  * Add patch to fix size_t overflow in sa_common.c.
+    (Fixes: CVE-2022-39377) (Closes: #1023832)
+  * Add patch to include limits.h to leverage UINT_MAX, duh.
+
+ -- Utkarsh Gupta <utkarsh@debian.org>  Mon, 14 Nov 2022 02:50:02 +0530
+
 sysstat (11.0.1-1) unstable; urgency=medium
 
   * New upstream (stable) version.

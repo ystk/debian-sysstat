@@ -1,0 +1,14 @@
+Description: Included limits.h to leverage UINT_MAX.
+Author: Utkarsh Gupta <utkarsh@debian.org>
+Forwarded: not-needed
+
+--- a/common.h
++++ b/common.h
+@@ -11,6 +11,7 @@
+ 
+ #include <time.h>
+ #include <sched.h>	/* For __CPU_SETSIZE */
++#include <limits.h>
+ #include "rd_stats.h"
+ 
+ /*
