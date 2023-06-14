@@ -1,3 +1,10 @@
+sysstat (11.0.1-1+deb8u2) jessie-security; urgency=high
+
+  * Non-maintainer upload by the ELTS Security Team.
+  * CVE-2023-33204: incomplete fix for CVE-2022-39377. (Closes: #1036294)
+
+ -- Sylvain Beucler <beuc@debian.org>  Sat, 03 Jun 2023 14:30:28 +0200
+
 sysstat (11.0.1-1+deb8u1) jessie-security; urgency=high
 
   * Non-maintainer upload by the ELTS team.
